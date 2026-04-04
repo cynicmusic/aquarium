@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fish 3D Spinner — Layer Tuning</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0a1a; color: #ccc; font: 13px/1.4 monospace; display: flex; height: 100vh; overflow: hidden; }
+    #viewport { flex: 1; position: relative; }
+    canvas { display: block; width: 100%; height: 100%; }
+    #sidebar {
+      width: 300px; background: #111; border-left: 1px solid #333;
+      overflow-y: auto; padding: 12px; flex-shrink: 0;
+    }
+    .section { margin-bottom: 16px; }
+    .section h3 { color: #7af; font-size: 12px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
+    .slider-row { display: flex; align-items: center; margin-bottom: 6px; }
+    .slider-row label { width: 110px; font-size: 11px; color: #888; }
+    .slider-row input[type="range"] { flex: 1; }
+    .slider-row .val { width: 40px; text-align: right; font-size: 11px; color: #aaa; }
+    select { background: #222; color: #ccc; border: 1px solid #444; padding: 4px; width: 100%; margin-bottom: 8px; }
+    #status { position: absolute; bottom: 8px; left: 8px; color: #555; font-size: 11px; }
+    a.back { color: #559; text-decoration: none; display: block; margin-bottom: 12px; }
+    a.back:hover { color: #77b; }
+  </style>
+</head>
+<body>
+  <div id="viewport">
+    <div id="status">Loading...</div>
+  </div>
+  <div id="sidebar">
+    <a class="back" href="/">&larr; Back to Aquarium</a>
+    <div class="section">
+      <h3>Scales</h3>
+      <div class="slider-row"><label>Size</label><input type="range" min="5" max="100" value="40" id="scaleSize"><span class="val">40</span></div>
+      <div class="slider-row"><label>Opacity</label><input type="range" min="0" max="100" value="15" id="scaleOpacity"><span class="val">0.15</span></div>
+      <div class="slider-row"><label>Contrast</label><input type="range" min="0" max="100" value="30" id="scaleContrast"><span class="val">0.30</span></div>
+    </div>
+    <div class="section">
+      <h3>Depth Layer</h3>
+      <div class="slider-row"><label>Opacity</label><input type="range" min="0" max="100" value="10" id="depthOpacity"><span class="val">0.10</span></div>
+      <div class="slider-row"><label>Blend Mode</label>
+        <select id="depthBlendMode"><option value="0">Screen</option><option value="1">Additive (Glow)</option></select>
+      </div>
+      <div class="slider-row"><label>Noise Offset</label><input type="range" min="0" max="100" value="37" id="depthNoiseOffset"><span class="val">3.7</span></div>
+      <div class="slider-row"><label>Freq Scale</label><input type="range" min="10" max="200" value="70" id="depthFreqScale"><span class="val">0.70</span></div>
+    </div>
+    <div class="section">
+      <h3>Iridescence</h3>
+      <div class="slider-row"><label>Intensity</label><input type="range" min="0" max="100" value="8" id="iridIntensity"><span class="val">0.08</span></div>
+      <div class="slider-row"><label>Color 1</label><input type="color" value="#4488ff" id="iridColor1"></div>
+      <div class="slider-row"><label>Color 2</label><input type="color" value="#88ffcc" id="iridColor2"></div>
+      <div class="slider-row"><label>Angle Shift</label><input type="range" min="0" max="628" value="0" id="iridAngleShift"><span class="val">0.00</span></div>
+    </div>
+    <div class="section">
+      <h3>Global</h3>
+      <div class="slider-row"><label>Spin Speed</label><input type="range" min="0" max="200" value="50" id="spinSpeed"><span class="val">0.50</span></div>
+      <div class="slider-row"><label>Width Factor</label><input type="range" min="20" max="100" value="55" id="widthFactor"><span class="val">0.55</span></div>
+    </div>
+  </div>
+  <script type="module" src="/src/spinner/FishSpinner.js"></script>
+</body>
+</html>

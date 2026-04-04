@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aquarium Designer</title>
+  <link rel="stylesheet" href="/src/styles.css">
+</head>
+<body>
+  <div id="canvas-container"></div>
+
+  <!-- Disclosure toggle for right panel -->
+  <button id="panel-toggle" title="Toggle designer panel">&#9654;</button>
+
+  <div id="ui-root" class="collapsed">
+    <nav id="designer-nav">
+      <button class="nav-btn active" data-designer="fish">Fish</button>
+      <button class="nav-btn" data-designer="cuttlefish">Cuttlefish</button>
+      <button class="nav-btn" data-designer="plants">Plants</button>
+      <button class="nav-btn" data-designer="sand">Sand</button>
+      <button class="nav-btn" data-designer="coral">Coral</button>
+      <button class="nav-btn" data-designer="lighting">Lighting</button>
+      <button class="nav-btn" data-designer="effects">Effects</button>
+      <button class="nav-btn" data-designer="scene">Scene</button>
+      <span id="debug-toggle" title="Debug overlay (G)">[G] Debug</span>
+    </nav>
+    <div id="designer-panel"></div>
+  </div>
+
+  <!-- Disclosure toggle for debug overlay -->
+  <button id="debug-panel-toggle" title="Toggle debug overlay">&#9664;</button>
+
+  <div id="variant-grid" class="hidden"></div>
+  <div id="debug-overlay" class="hidden"></div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

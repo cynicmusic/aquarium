@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Chromatophore Workshop</title>
+<style>
+  * { margin: 0; padding: 0; }
+  body { background: #000; overflow: hidden; }
+  canvas { display: block; width: 100vw; height: 100vh; }
+  #label { position: fixed; top: 8px; left: 50%; transform: translateX(-50%); color: rgba(255,255,255,0.4); font: 11px monospace; letter-spacing: 2px; cursor: pointer; z-index: 1; user-select: none; }
+  #label:hover { color: rgba(255,255,255,0.7); }
+</style>
+</head>
+<body>
+<div id="label">[NORMAL]</div>
+<script type="module" src="/src/workshop/ChromatophoreWorkshop.js"></script>
+</body>
+</html>
