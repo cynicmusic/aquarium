@@ -238,6 +238,9 @@ params.animSpeed ??= 1.0;
 
 let cuttle = createCuttlefish(params);
 scene.add(cuttle);
+// Push HTML-default uniform values (zebra transforms etc.) onto the material
+// since createCuttlefish only forwards a subset to the chromatophore shader.
+syncAllUniforms();
 
 // Dev: press D to toggle zebra-mask debug rendering (show only mask grayscale)
 // Keys 1-8: switch swim-cam variant WITHOUT disabling autocam — you can
@@ -279,6 +282,21 @@ function rebuild() {
   });
   cuttle = createCuttlefish(params);
   scene.add(cuttle);
+  syncAllUniforms();
+}
+
+// Push every uniform-kind param to the freshly-built mantle material.
+// Cuttlefish.js only forwards a subset (zebraIntensity/zebraFrequency) to
+// createChromatophoreMaterial — the rest (zebraScaleX/Y, zebraRotation,
+// zebraSharpness, zebraGate*) default to the material's own fallbacks. Paste
+// JSON works because it calls setUniform for every control; initial load did
+// not. This closes that gap.
+function syncAllUniforms() {
+  for (const [id, cfg] of Object.entries(CONTROLS)) {
+    if (cfg.kind === 'uniform' && id in params) {
+      setUniform(cfg.uniform, params[id]);
+    }
+  }
 }
 
 // One-shot cleanup: nuke any stale param caches from previous deploys so
