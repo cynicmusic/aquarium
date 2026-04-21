@@ -93,18 +93,6 @@ const CONTROLS = {
   rotSpeed:           { kind: 'anim', scale: v => v / 100 },
 };
 
-// Hide slider panel ONLY for headless renders (evolutionary round runner
-// passes autoRotate=0). When a user opens the page with ?cfg=… to inspect a
-// saved stack, keep the panel visible so they can tweak from there.
-const _qs0 = new URLSearchParams(location.search);
-const _headless = _qs0.get('autoRotate') === '0' || _qs0.get('panel') === '0';
-if (_headless) {
-  const panel = document.getElementById('panel');
-  const info = document.getElementById('info');
-  if (panel) panel.style.display = 'none';
-  if (info) info.style.display = 'none';
-}
-
 const view = document.getElementById('view');
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
@@ -293,32 +281,14 @@ function rebuild() {
   scene.add(cuttle);
 }
 
-// ── localStorage session persistence ────────────────────────────────────
-// Vite HMR sometimes full-page-reloads, which blows DOM slider state back to
-// HTML defaults. We save params on every change and restore them on load so
-// in-session tweaks survive reloads. URL ?cfg= still wins over localStorage.
-const LS_KEY = 'cuttle.preview.params.v1';
-let _lsSaveT = 0;
-function lsSave() {
-  // Throttle to ~10/sec to avoid slamming localStorage on slider drag
-  const now = performance.now();
-  if (now - _lsSaveT < 100) return;
-  _lsSaveT = now;
-  try {
-    const out = {};
-    for (const k of Object.keys(params)) {
-      if (k === 'animSpeed' || k === 'rotSpeed') continue;
-      out[k] = params[k];
-    }
-    localStorage.setItem(LS_KEY, JSON.stringify(out));
-  } catch {}
-}
-function lsLoad() {
-  try {
-    const s = localStorage.getItem(LS_KEY);
-    return s ? JSON.parse(s) : null;
-  } catch { return null; }
-}
+// One-shot cleanup: nuke any stale param caches from previous deploys so
+// reloads can never resurrect old tweaks. The preview is stateless — HTML
+// slider defaults are the canonical source of truth; Copy/Paste JSON is the
+// only way to move params in/out.
+try {
+  localStorage.removeItem('cuttle.preview.params.v1');
+  localStorage.removeItem('cuttle.preview.params');
+} catch {}
 
 function setUniform(name, value) {
   const mat = findMantleMaterial();
@@ -334,7 +304,6 @@ document.querySelectorAll('input[type=checkbox]').forEach(el => {
     if (!cfg) return;
     params[id] = el.checked;
     if (cfg.kind === 'geom') rebuild();
-    lsSave();
   });
 });
 document.querySelectorAll('input[type=range]').forEach(el => {
@@ -354,17 +323,12 @@ document.querySelectorAll('input[type=range]').forEach(el => {
     }
     if (cfg.kind === 'geom') rebuild();
     else if (cfg.kind === 'uniform') setUniform(cfg.uniform, v);
-    lsSave();
   });
 });
 
-// Parse URL query for headless multiview:
-//   ?yaw=..&pitch=..&hideTentacles=1&autoRotate=0
-//   ?cfg=<base64 JSON>  → full param-stack override (for evolutionary runner)
-const qs = new URLSearchParams(location.search);
-let initYaw   = qs.has('yaw')   ? parseFloat(qs.get('yaw'))   : 0.3;
-let initPitch = qs.has('pitch') ? parseFloat(qs.get('pitch')) : 0.2;
-const autoRotate = qs.get('autoRotate') !== '0';
+const initYaw   = 0.3;
+const initPitch = 0.2;
+const autoRotate = true;
 
 // Inverse-scale helper — given a scaled param value, find the raw slider
 // integer that produces it. Works for the v/N linear forms used here.
@@ -378,8 +342,7 @@ function _invertScale(cfg, v) {
 }
 
 // Apply a params object into the UI: updates slider positions, value-spans,
-// rebuilds geometry, pushes uniforms. Used by ?cfg= load, Paste JSON, and
-// localStorage restore.
+// rebuilds geometry, pushes uniforms. Used by Paste JSON.
 function applyParamsToUI(obj, { rebuildOnChange = true } = {}) {
   Object.assign(params, obj);
   for (const [id, cfg] of Object.entries(CONTROLS)) {
@@ -399,32 +362,6 @@ function applyParamsToUI(obj, { rebuildOnChange = true } = {}) {
   for (const [id, cfg] of Object.entries(CONTROLS)) {
     if (cfg.kind === 'uniform' && id in obj) setUniform(cfg.uniform, obj[id]);
   }
-}
-
-// Restore order: HTML defaults → localStorage → URL ?cfg= (highest priority).
-const _lsSaved = lsLoad();
-if (_lsSaved && !qs.has('cfg')) {
-  applyParamsToUI(_lsSaved);
-  const badge = document.getElementById('info');
-  if (badge) badge.textContent = `restored session (${Object.keys(_lsSaved).length} params)`;
-}
-
-if (qs.has('cfg')) {
-  try {
-    const decoded = JSON.parse(atob(qs.get('cfg')));
-    applyParamsToUI(decoded);
-    const badge = document.getElementById('info');
-    if (badge) badge.textContent = `cfg loaded: ${Object.keys(decoded).length} params`;
-    lsSave();
-  } catch (e) {
-    console.error('cfg decode failed', e);
-  }
-}
-if (qs.get('hideTentacles') === '1') {
-  params.hideTentacles = true;
-  const el = document.getElementById('hideTentacles');
-  if (el) el.checked = true;
-  rebuild();
 }
 
 // Copy / Paste JSON params — lets the user tweak sliders and hand the
@@ -467,7 +404,6 @@ if (pasteBtn) pasteBtn.addEventListener('click', async () => {
   try { obj = JSON.parse(raw); }
   catch { flash('✗ invalid JSON', 2500); return; }
   applyParamsToUI(obj);
-  lsSave();
   flash(`✓ pasted ${Object.keys(obj).length} params — rebuilt`);
 });
 
@@ -479,7 +415,7 @@ if (pasteBtn) pasteBtn.addEventListener('click', async () => {
 // its path is a slow Lissajous — no abrupt direction reversals, never crosses
 // in front of the face. Four presets pick different behind-hemisphere poses.
 let swimMode = false;
-let swimCam = 1;                               // 1..4 variant
+let swimCam = 7;                               // 1..8 variant; 7 is the default best profile
 const swimState = { x: 0, y: 0, phase: 0 };
 const _savedCam = new THREE.Vector3();
 let _savedYaw = 0, _savedAutoYaw = 0;
@@ -626,12 +562,43 @@ setCamVariant(swimCam);
 let autocamMode = false;
 let autocamNextAt = 0;
 
+// ── Autocam boot ─────────────────────────────────────────────────────────
+// On first AC activation, run a 30-second intro that holds on cam 7 (the
+// "best profile") with at most two swaps to cam 1 mixed in. After the boot
+// window, release to the normal bimodal-tempo logic. Manual key/button picks
+// abort the boot early.
+const AUTOCAM_BOOT_WINDOW = 30;
+let _autocamEverBooted = false;
+let autocamBootPlan = null;        // [{at: seconds, cam: n}, …]
+let autocamBootEndAt = -1;
+let autocamBootLastCam = null;
+
+function armAutocamBoot(startElapsed) {
+  // 0, 1, or 2 swaps. Segments ≥ 8s so each angle is long enough to read.
+  const swaps = Math.floor(Math.random() * 3);
+  const plan = [{ at: startElapsed, cam: 7 }];
+  let cursor = startElapsed;
+  let cur = 7;
+  const endAt = startElapsed + AUTOCAM_BOOT_WINDOW;
+  for (let i = 0; i < swaps; i++) {
+    const remaining = endAt - cursor;
+    if (remaining < 12) break;       // not enough room for another segment
+    const segLen = 8 + Math.random() * Math.min(remaining - 4, 14);
+    cursor += segLen;
+    cur = cur === 7 ? 1 : 7;
+    plan.push({ at: cursor, cam: cur });
+  }
+  autocamBootPlan = plan;
+  autocamBootEndAt = endAt;
+  autocamBootLastCam = 7;
+  setCamVariant(7);
+}
+
 function pickAutocamDelay(elapsed) {
   // Tempo oscillates slowly between "short" and "long" regimes.
-  const tempo = 0.5 + 0.5 * Math.sin(elapsed * 0.008 + 1.3);   // period ~13 min visually, effectively long
+  const tempo = 0.5 + 0.5 * Math.sin(elapsed * 0.008 + 1.3);
   // mean interval: 30s at low tempo, 5s at high tempo
   const mean = 30 - tempo * 25;
-  // per-pick jitter: uniform 0.4× .. 1.8× of mean
   let delay = mean * (0.4 + Math.random() * 1.4);
   // rare long hold — ~6% of picks stretch to 60-180s regardless of tempo
   if (Math.random() < 0.06) delay = 60 + Math.random() * 120;
@@ -640,6 +607,31 @@ function pickAutocamDelay(elapsed) {
 
 function autocamTick(elapsed) {
   if (!autocamMode || !swimMode) return;
+
+  if (autocamBootPlan) {
+    // If the user manually picked a different cam since our last apply,
+    // treat it as an override and release boot immediately.
+    if (autocamBootLastCam !== null && swimCam !== autocamBootLastCam) {
+      autocamBootPlan = null;
+      autocamNextAt = elapsed + pickAutocamDelay(elapsed);
+      return;
+    }
+    // Apply the latest scheduled step whose `at` has elapsed.
+    let target = null;
+    for (const step of autocamBootPlan) {
+      if (elapsed >= step.at) target = step; else break;
+    }
+    if (target && target.cam !== swimCam) {
+      setCamVariant(target.cam);
+      autocamBootLastCam = target.cam;
+    }
+    if (elapsed >= autocamBootEndAt) {
+      autocamBootPlan = null;
+      autocamNextAt = elapsed + pickAutocamDelay(elapsed);
+    }
+    return;
+  }
+
   if (elapsed < autocamNextAt) return;
   let next = swimCam;
   while (next === swimCam) next = 1 + Math.floor(Math.random() * CAM_COUNT);
@@ -652,11 +644,18 @@ if (camAutoBtn) camAutoBtn.addEventListener('click', (e) => {
   autocamMode = !autocamMode;
   e.currentTarget.classList.toggle('active', autocamMode);
   if (autocamMode) {
-    // Pick first delay immediately; first switch happens after that
     const elapsed = clock?.getElapsedTime?.() ?? 0;
-    autocamNextAt = elapsed + pickAutocamDelay(elapsed);
+    // First activation of the session gets the 30s cam-7 boot intro.
+    // Subsequent toggles skip boot and start normal bimodal cadence.
+    if (!_autocamEverBooted) {
+      _autocamEverBooted = true;
+      armAutocamBoot(elapsed);
+    } else {
+      autocamNextAt = elapsed + pickAutocamDelay(elapsed);
+    }
     flash('🎥 autocam on', 1200);
   } else {
+    autocamBootPlan = null;
     flash('🎥 autocam off', 1000);
   }
 });
@@ -716,10 +715,9 @@ function loop() {
 loop();
 
 // Default: boot straight into swim mode with autocam on. Users tuning the
-// cuttlefish can toggle swim off; the preview page is now primarily a
-// "watch him swim" view, not a static turntable.
+// cuttlefish can toggle swim off via the button; the preview page is now
+// primarily a "watch him swim" view, not a static turntable.
 queueMicrotask(() => {
-  if (qs.get('swim') === '0') return;            // opt-out via ?swim=0
   document.getElementById('swimBtn')?.click();
   document.getElementById('camAuto')?.click();
 });
