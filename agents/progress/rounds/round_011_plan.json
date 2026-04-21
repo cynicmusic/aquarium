@@ -1,0 +1,51 @@
+{
+  "focus": "fin wraps past tail tip + dorsal crown melts into mantle + cleaner curtain arms + zebra iteration",
+  "candidates": {
+    "A": {
+      "hypothesis": "TAIL WRAP — fin extends past mantle, mantleTaper steeper for sharp tail",
+      "mutations": {
+        "finExtend": 1.35,
+        "finWidth": 0.30,
+        "mantleTaper": 1.00,
+        "zebraFrequency": 10
+      }
+    },
+    "B": {
+      "hypothesis": "MELTED CROWN — lower forehead so dorsal is a single unbroken line",
+      "mutations": {
+        "headForeheadH": 0.20,
+        "headBaseY": 0.12,
+        "headTiltDown": 0.05,
+        "headForeheadR": 0.62,
+        "zebraIntensity": 0.90
+      }
+    },
+    "C": {
+      "hypothesis": "CURTAIN CLEAN — tighter curl + slightly longer arms + tight crown",
+      "mutations": {
+        "armCurl": 0.78,
+        "armLength": 0.98,
+        "armCrownRadius": 0.20,
+        "armDropScale": 1.30,
+        "zebraFrequency": 9,
+        "zebraSharpness": 5.5
+      }
+    },
+    "D": {
+      "hypothesis": "COMBINE ALL — tail-wrap fin + melted crown + clean curtain",
+      "mutations": {
+        "finExtend": 1.25,
+        "finWidth": 0.28,
+        "mantleTaper": 0.98,
+        "headForeheadH": 0.22,
+        "headBaseY": 0.14,
+        "headTiltDown": 0.06,
+        "headForeheadR": 0.60,
+        "armCurl": 0.72,
+        "armLength": 0.95,
+        "armDropScale": 1.25,
+        "zebraFrequency": 10
+      }
+    }
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "focus": "head buried into mantle arch + wider paddle with thinner leaf margin + radial fan arms",
+  "candidates": {
+    "A": {
+      "hypothesis": "HEAD BURIED — head back matches mantle, tilt minimal, forehead gentle",
+      "mutations": {
+        "headBackR": 0.66,
+        "headBackH": 0.28,
+        "headTiltDown": 0.06,
+        "headBaseY": 0.16,
+        "headForeheadH": 0.32
+      }
+    },
+    "B": {
+      "hypothesis": "LEAF PADDLE — push shoulder boost hard + thin the tail so paddle reads",
+      "mutations": {
+        "mantleShoulderBoost": 1.35,
+        "mantleRadius": 0.70,
+        "mantleHeight": 0.17,
+        "mantleTaper": 0.92
+      }
+    },
+    "C": {
+      "hypothesis": "SPLAY MAX — wider crown + even less droop + slight outward arm pose",
+      "mutations": {
+        "armCrownRadius": 0.40,
+        "armDropScale": 0.20,
+        "armCurl": 0.32,
+        "armLength": 0.75
+      }
+    },
+    "D": {
+      "hypothesis": "COMBINE all three pushes at moderate settings",
+      "mutations": {
+        "mantleShoulderBoost": 1.25,
+        "mantleRadius": 0.66,
+        "mantleHeight": 0.18,
+        "mantleTaper": 0.90,
+        "headBackR": 0.62,
+        "headTiltDown": 0.10,
+        "headBaseY": 0.18,
+        "armCrownRadius": 0.36,
+        "armDropScale": 0.28,
+        "armCurl": 0.36
+      }
+    }
+  }
+}

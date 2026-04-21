@@ -1,0 +1,44 @@
+{
+  "focus": "widest dorsal oval + eyes rotate inward for W-pupil profile legibility + zebra iteration",
+  "candidates": {
+    "A": {
+      "hypothesis": "MAX DORSAL — even bigger mantle + max shoulder boost",
+      "mutations": {
+        "mantleRadius": 0.86,
+        "mantleShoulderBoost": 1.65,
+        "mantleHeight": 0.13
+      }
+    },
+    "B": {
+      "hypothesis": "EYES INWARD — reduce forward yaw so W-pupil faces sideways more, visible in profile",
+      "mutations": {
+        "eyeForwardYaw": 0.30,
+        "eyeTiltUp": 0.20,
+        "pupilScaleW": 1.85,
+        "pupilScaleH": 0.90
+      }
+    },
+    "C": {
+      "hypothesis": "FAT STRIPE ZEBRA — lower frequency + high intensity for bold tiger banding",
+      "mutations": {
+        "zebraFrequency": 6,
+        "zebraIntensity": 1.20,
+        "zebraSharpness": 7.0
+      }
+    },
+    "D": {
+      "hypothesis": "COMBINE — max dorsal + eyes inward + bold zebra",
+      "mutations": {
+        "mantleRadius": 0.82,
+        "mantleShoulderBoost": 1.55,
+        "mantleHeight": 0.14,
+        "eyeForwardYaw": 0.40,
+        "eyeTiltUp": 0.18,
+        "pupilScaleW": 1.80,
+        "zebraFrequency": 7,
+        "zebraIntensity": 1.10,
+        "zebraSharpness": 6.5
+      }
+    }
+  }
+}

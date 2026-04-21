@@ -1,0 +1,55 @@
+{
+  "focus": "crown the eyes + flatten head from FRONT + push toward leaf silhouette",
+  "candidates": {
+    "A": {
+      "hypothesis": "CROWN FLAT — flat wide head, eyes on top tilted up",
+      "mutations": {
+        "headSquashX": 1.10,
+        "headSquashY": 0.72,
+        "headRadiusScale": 1.05,
+        "eyeRiseY": 1.10,
+        "eyeLateralZ": 0.65,
+        "eyeTiltUp": 0.55,
+        "eyeLateralPad": 0.15
+      }
+    },
+    "B": {
+      "hypothesis": "WIDE DOME — bigger wider head, eyes high with moderate tilt",
+      "mutations": {
+        "headRadiusScale": 1.22,
+        "headSquashX": 1.05,
+        "headSquashY": 0.85,
+        "eyeRiseY": 0.95,
+        "eyeTiltUp": 0.45,
+        "eyeLateralZ": 0.75,
+        "eyeLateralPad": 0.20
+      }
+    },
+    "C": {
+      "hypothesis": "LEAF BODY — narrower longer mantle, wider head, eyes on crown",
+      "mutations": {
+        "mantleLength": 2.70,
+        "mantleRadius": 0.45,
+        "mantleTaper": 0.82,
+        "headRadiusScale": 1.10,
+        "headSquashX": 1.00,
+        "headSquashY": 0.80,
+        "eyeRiseY": 1.00,
+        "eyeLateralZ": 0.70,
+        "eyeTiltUp": 0.50
+      }
+    },
+    "D": {
+      "hypothesis": "FORWARD EYES — both eyes visible from front, head flat",
+      "mutations": {
+        "headSquashX": 1.05,
+        "headSquashY": 0.78,
+        "eyeRiseY": 0.95,
+        "eyeForwardX": 0.25,
+        "eyeLateralZ": 0.55,
+        "eyeLateralPad": 0.10,
+        "eyeTiltUp": 0.60
+      }
+    }
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "focus": "head down+forward into mantle shoulder + broaden dorsal oval + zebra variants",
+  "candidates": {
+    "A": {
+      "hypothesis": "HEAD SINK — push head position forward into mantle, lower base",
+      "mutations": {
+        "headLength": 0.45,
+        "headBaseY": 0.08,
+        "headTiltDown": 0.02,
+        "headForeheadH": 0.18,
+        "headBackR": 0.72
+      }
+    },
+    "B": {
+      "hypothesis": "BROAD DORSAL — wider mantle, even more shoulder boost for dorsal paddle",
+      "mutations": {
+        "mantleRadius": 0.78,
+        "mantleShoulderBoost": 1.50,
+        "mantleHeight": 0.15,
+        "mantleFrontBoost": 1.80,
+        "zebraFrequency": 10
+      }
+    },
+    "C": {
+      "hypothesis": "MOTTLED ZEBRA — lower intensity, much higher freq for rippled pattern",
+      "mutations": {
+        "zebraIntensity": 0.75,
+        "zebraFrequency": 18,
+        "zebraSharpness": 3.5
+      }
+    },
+    "D": {
+      "hypothesis": "COMBINE — sink head + broaden dorsal + balanced zebra",
+      "mutations": {
+        "headLength": 0.48,
+        "headBaseY": 0.10,
+        "headTiltDown": 0.03,
+        "headForeheadH": 0.20,
+        "headBackR": 0.74,
+        "mantleRadius": 0.74,
+        "mantleShoulderBoost": 1.45,
+        "mantleFrontBoost": 1.75,
+        "zebraFrequency": 11,
+        "zebraSharpness": 6.0
+      }
+    }
+  }
+}

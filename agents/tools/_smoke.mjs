@@ -1,0 +1,10 @@
+import { chromium } from 'playwright';
+const b = await chromium.launch({ args: ['--enable-webgl','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist'] });
+const p = await b.newPage();
+const errs = [];
+p.on('pageerror', e => errs.push('ERR: ' + e.message));
+p.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.text()); });
+await p.goto('http://localhost:3456/cuttlefish-preview.html', { waitUntil: 'networkidle' });
+await p.waitForTimeout(1500);
+console.log(errs.length ? errs.join('\n') : 'OK');
+await b.close();

@@ -1,0 +1,41 @@
+{
+  "focus": "carved W-pupil visible at distance (shape now sharper) + tentacle+zebra iteration",
+  "candidates": {
+    "A": {
+      "hypothesis": "BIGGER EYE — enlarge eye so the new carved W pupil reads at arm's length",
+      "mutations": {
+        "eyeRadius": 0.16,
+        "pupilScaleW": 1.95,
+        "pupilScaleH": 1.00
+      }
+    },
+    "B": {
+      "hypothesis": "W WIDE — very wide pupil with modest eye size, so W aspect is pronounced",
+      "mutations": {
+        "pupilScaleW": 2.20,
+        "pupilScaleH": 0.80,
+        "eyeForwardYaw": 0.25
+      }
+    },
+    "C": {
+      "hypothesis": "CHEVRON ZEBRA — low freq chunky zebra + stable eye",
+      "mutations": {
+        "zebraFrequency": 7,
+        "zebraSharpness": 5.0,
+        "zebraIntensity": 1.15
+      }
+    },
+    "D": {
+      "hypothesis": "COMBINE — bigger eye + wide W + moderate zebra refinement",
+      "mutations": {
+        "eyeRadius": 0.155,
+        "pupilScaleW": 2.05,
+        "pupilScaleH": 0.92,
+        "eyeForwardYaw": 0.26,
+        "zebraFrequency": 10,
+        "zebraSharpness": 6.0,
+        "zebraIntensity": 1.05
+      }
+    }
+  }
+}

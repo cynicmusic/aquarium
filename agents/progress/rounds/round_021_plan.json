@@ -1,0 +1,47 @@
+{
+  "focus": "wider mantle oval from above + eyes tilt outward to preserve W on crown + zebra iteration",
+  "candidates": {
+    "A": {
+      "hypothesis": "WIDE OVAL — max shoulder boost + wider mantle for true flat oval top view",
+      "mutations": {
+        "mantleShoulderBoost": 1.75,
+        "mantleRadius": 0.86,
+        "mantleHeight": 0.13,
+        "mantleFrontBoost": 1.95
+      }
+    },
+    "B": {
+      "hypothesis": "W PRESERVED — slight outward yaw so the W faces camera at 3/4 from SIDE",
+      "mutations": {
+        "eyeForwardYaw": 0.15,
+        "eyeTiltUp": 0.30,
+        "eyeRiseY": 1.05,
+        "pupilScaleW": 2.30,
+        "pupilScaleH": 0.85
+      }
+    },
+    "C": {
+      "hypothesis": "MOTTLE ZEBRA — higher freq moderate intensity for fine-band cuttlefish pattern",
+      "mutations": {
+        "zebraFrequency": 16,
+        "zebraSharpness": 4.5,
+        "zebraIntensity": 1.00
+      }
+    },
+    "D": {
+      "hypothesis": "COMBINE — wider oval + eyes preserve W + fine zebra",
+      "mutations": {
+        "mantleShoulderBoost": 1.65,
+        "mantleRadius": 0.82,
+        "mantleHeight": 0.14,
+        "mantleFrontBoost": 1.90,
+        "eyeForwardYaw": 0.18,
+        "eyeTiltUp": 0.28,
+        "eyeRiseY": 1.00,
+        "pupilScaleW": 2.20,
+        "zebraFrequency": 13,
+        "zebraSharpness": 5.0
+      }
+    }
+  }
+}

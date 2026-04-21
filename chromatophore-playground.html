@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Chromatophore Playground — layer isolation</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#07080f; color:#ccd; font:11px/1.3 monospace; padding:8px; }
+  #ref { display:flex; gap:8px; margin-bottom:8px; }
+  #ref img { height:140px; display:block; }
+  #ref .panel { background:#0b0c14; padding:4px 8px; }
+  #ref .panel div { color:#7bd; font-weight:bold; margin-bottom:4px; }
+  #grid { display:grid; grid-template-columns: repeat(4, 1fr); gap:6px; }
+  .cell { position:relative; background:#0a0b14; aspect-ratio: 1.4; overflow:hidden; }
+  canvas { width:100%; height:100%; display:block; }
+  .lbl { position:absolute; top:4px; left:6px; color:#cde; font-size:11px; background:rgba(0,0,0,0.65); padding:3px 6px; border-radius:2px; }
+  .lbl b { color:#7bd; }
+</style>
+</head>
+<body>
+<div id="ref">
+  <div class="panel"><div>MASTER</div><img src="/examples/external/cuttle/master reference.png"></div>
+  <div class="panel"><div>PUPIL</div><img src="/examples/external/cuttle/pupil.png"></div>
+  <div class="panel"><div>SIDE</div><img src="/examples/external/cuttle/shutterstock-2459084889-huge-licensed-scaled-1024x683.jpg"></div>
+</div>
+<div id="grid"></div>
+<script type="module" src="/src/workshop/ChromatoPlayground.js"></script>
+</body>
+</html>

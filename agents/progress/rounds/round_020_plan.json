@@ -1,0 +1,48 @@
+{
+  "focus": "eye on dorsal crown + hunter tentacles longer than arms + ever-taller W shoulders",
+  "candidates": {
+    "A": {
+      "hypothesis": "CROWN-EYE — rise very high, tilt up more so eye sits on dorsal ridge",
+      "mutations": {
+        "eyeRiseY": 1.20,
+        "eyeTiltUp": 0.40,
+        "eyeStation": 0.28,
+        "eyeForwardYaw": 0.20
+      }
+    },
+    "B": {
+      "hypothesis": "LONG HUNTERS — tentacles more extended, much longer than arms; tighter arm crown",
+      "mutations": {
+        "tentacleLength": 2.40,
+        "tentacleExtension": 0.80,
+        "tentacleClubRadius": 0.10,
+        "armLength": 0.72,
+        "armCurl": 0.90
+      }
+    },
+    "C": {
+      "hypothesis": "EARLY STATION — eye station very close to the forehead so the W tilts skyward",
+      "mutations": {
+        "eyeStation": 0.22,
+        "eyeRiseY": 1.10,
+        "eyeTiltUp": 0.30,
+        "pupilScaleW": 2.20,
+        "pupilScaleH": 0.90
+      }
+    },
+    "D": {
+      "hypothesis": "COMBINE — crown eye + long hunters + big W",
+      "mutations": {
+        "eyeRiseY": 1.15,
+        "eyeTiltUp": 0.35,
+        "eyeStation": 0.26,
+        "tentacleLength": 2.20,
+        "tentacleExtension": 0.70,
+        "tentacleClubRadius": 0.10,
+        "armLength": 0.76,
+        "armCurl": 0.88,
+        "pupilScaleW": 2.15
+      }
+    }
+  }
+}

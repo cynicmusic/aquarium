@@ -1,0 +1,51 @@
+{
+  "focus": "tentacle differentiation (long+thin+clubbed) + arm-crown articulation variation",
+  "candidates": {
+    "A": {
+      "hypothesis": "LONG TENTACLES — push extension + length so tentacles visibly outreach the arm crown",
+      "mutations": {
+        "tentacleLength": 2.20,
+        "tentacleExtension": 0.75,
+        "tentacleClubRadius": 0.080,
+        "tentacleBaseRadius": 0.014,
+        "tentacleTipRadius": 0.004
+      }
+    },
+    "B": {
+      "hypothesis": "THIN+CLUBBED — very thin tentacle with dramatic club at the tip",
+      "mutations": {
+        "tentacleLength": 1.90,
+        "tentacleExtension": 0.60,
+        "tentacleClubRadius": 0.095,
+        "tentacleBaseRadius": 0.011,
+        "tentacleTipRadius": 0.003,
+        "armCurl": 0.85
+      }
+    },
+    "C": {
+      "hypothesis": "ARM ARTICULATION — tighter curl + shorter arms so tentacles stand out as separate",
+      "mutations": {
+        "armLength": 0.70,
+        "armCurl": 0.88,
+        "armBaseRadius": 0.085,
+        "armTipRadius": 0.012,
+        "armCrownRadius": 0.18,
+        "tentacleExtension": 0.65
+      }
+    },
+    "D": {
+      "hypothesis": "COMBINE — long+thin+clubbed tentacles + articulated short curly arms",
+      "mutations": {
+        "tentacleLength": 2.10,
+        "tentacleExtension": 0.70,
+        "tentacleClubRadius": 0.090,
+        "tentacleBaseRadius": 0.012,
+        "tentacleTipRadius": 0.004,
+        "armLength": 0.78,
+        "armCurl": 0.82,
+        "armBaseRadius": 0.082,
+        "armCrownRadius": 0.19
+      }
+    }
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "focus": "W-pupil legibility + seamless dorsal sweep (mantle→head no visible seam)",
+  "candidates": {
+    "A": {
+      "hypothesis": "BIG DARK W — bigger pupil scale, deeper extrude, face-camera iris",
+      "mutations": {
+        "pupilScaleW": 1.70,
+        "pupilScaleH": 0.90,
+        "eyeRadius": 0.14,
+        "eyeForwardYaw": 0.90,
+        "eyeTiltUp": 0.18
+      }
+    },
+    "B": {
+      "hypothesis": "SEAMLESS DORSAL — widen headBackR/H to match mantle nose + low tilt",
+      "mutations": {
+        "headBackR": 0.70,
+        "headBackH": 0.26,
+        "headTiltDown": 0.08,
+        "headBaseY": 0.18,
+        "headForeheadR": 0.56,
+        "headForeheadH": 0.30
+      }
+    },
+    "C": {
+      "hypothesis": "EYES ON CROWN + FORWARD — rise higher, station earlier, less tilt-up",
+      "mutations": {
+        "eyeStation": 0.30,
+        "eyeRiseY": 0.90,
+        "eyeForwardYaw": 0.85,
+        "eyeTiltUp": 0.12,
+        "eyeRadius": 0.13,
+        "pupilScaleW": 1.55
+      }
+    },
+    "D": {
+      "hypothesis": "COMBINE W + SEAM + CROWN — comprehensive fix",
+      "mutations": {
+        "pupilScaleW": 1.55,
+        "pupilScaleH": 0.85,
+        "eyeRadius": 0.13,
+        "eyeStation": 0.32,
+        "eyeRiseY": 0.85,
+        "eyeForwardYaw": 0.85,
+        "eyeTiltUp": 0.15,
+        "headBackR": 0.66,
+        "headForeheadR": 0.52,
+        "headTiltDown": 0.10
+      }
+    }
+  }
+}

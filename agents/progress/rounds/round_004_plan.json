@@ -1,0 +1,41 @@
+{
+  "focus": "paddle shoulders via mantleShoulderBoost + radial arm crown + no-neck blend",
+  "candidates": {
+    "A": {
+      "hypothesis": "SHOULDER BOOST — push the mantle's shoulder region wider than mid-mantle",
+      "mutations": {
+        "mantleShoulderBoost": 1.25,
+        "mantleTaper": 0.88
+      }
+    },
+    "B": {
+      "hypothesis": "WIDER CROWN — bigger arm-root ring, arms splay radially from mouth",
+      "mutations": {
+        "armCrownRadius": 0.32,
+        "armLength": 0.72,
+        "armCurl": 0.48
+      }
+    },
+    "C": {
+      "hypothesis": "NO-NECK v2 — widen headBackR toward mantle + reduce tilt",
+      "mutations": {
+        "headBackR": 0.62,
+        "headBackH": 0.26,
+        "headTiltDown": 0.14,
+        "headBaseY": 0.22
+      }
+    },
+    "D": {
+      "hypothesis": "COMBINE — shoulder boost + wider crown + no-neck blend",
+      "mutations": {
+        "mantleShoulderBoost": 1.22,
+        "mantleTaper": 0.88,
+        "armCrownRadius": 0.30,
+        "armCurl": 0.50,
+        "headBackR": 0.58,
+        "headTiltDown": 0.16,
+        "headBaseY": 0.22
+      }
+    }
+  }
+}

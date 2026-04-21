@@ -10,6 +10,12 @@ export default defineConfig({
       input: {
         main: 'index.html',
         spinner: 'fish-spinner.html',
+        cuttlefish: 'cuttlefish-preview.html',
+        cuttlefishSheet: 'cuttlefish-sheet.html',
+        skinSheet: 'skin-sheet.html',
+        zebraSheet: 'zebra-sheet.html',
+        playground: 'chromatophore-playground.html',
+        workshop: 'chromatophore-workshop.html',
       },
     },
   },

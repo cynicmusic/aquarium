@@ -1,0 +1,43 @@
+{
+  "focus": "tight forward-facing arm crown (gesturing not splaying) + keep broad oval + zebra variants",
+  "candidates": {
+    "A": {
+      "hypothesis": "FORWARD ROSETTE — arms gesture forward, tight crown, less droop",
+      "mutations": {
+        "armCrownRadius": 0.14,
+        "armDropScale": 0.60,
+        "armCurl": 0.80,
+        "armLength": 0.68
+      }
+    },
+    "B": {
+      "hypothesis": "FORWARD LONG — longer arms forward, moderate drape",
+      "mutations": {
+        "armCrownRadius": 0.16,
+        "armDropScale": 0.90,
+        "armCurl": 0.70,
+        "armLength": 0.82
+      }
+    },
+    "C": {
+      "hypothesis": "STRIPE ZEBRA — moderate freq, sharp — real cuttlefish bar pattern",
+      "mutations": {
+        "zebraFrequency": 9,
+        "zebraSharpness": 7.0,
+        "zebraIntensity": 1.10
+      }
+    },
+    "D": {
+      "hypothesis": "COMBINE — forward-gesturing tight crown + classic stripes",
+      "mutations": {
+        "armCrownRadius": 0.15,
+        "armDropScale": 0.75,
+        "armCurl": 0.78,
+        "armLength": 0.72,
+        "zebraFrequency": 10,
+        "zebraSharpness": 6.5,
+        "zebraIntensity": 1.05
+      }
+    }
+  }
+}

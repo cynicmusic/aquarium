@@ -1,0 +1,48 @@
+{
+  "focus": "smoother head-into-mantle fusion + tighter arm radial ring + broader oval + zebra refine",
+  "candidates": {
+    "A": {
+      "hypothesis": "DEEP FUSE — big frontBoost + matched back ring for invisible seam",
+      "mutations": {
+        "mantleFrontBoost": 2.00,
+        "headBackR": 0.82,
+        "headBackH": 0.30,
+        "headForeheadR": 0.72,
+        "headForeheadH": 0.20,
+        "headBaseY": 0.08
+      }
+    },
+    "B": {
+      "hypothesis": "TIGHT RADIAL CROWN — smaller crown radius + less droop so arms ring cleanly",
+      "mutations": {
+        "armCrownRadius": 0.14,
+        "armDropScale": 0.85,
+        "armCurl": 0.75,
+        "armLength": 0.68
+      }
+    },
+    "C": {
+      "hypothesis": "BROADER OVAL — push mantle radius + shoulder boost for true cuttlefish top view",
+      "mutations": {
+        "mantleShoulderBoost": 1.80,
+        "mantleRadius": 0.90,
+        "mantleHeight": 0.12,
+        "mantleTaper": 0.98
+      }
+    },
+    "D": {
+      "hypothesis": "COMBINE — deep fuse + tight ring + broader oval",
+      "mutations": {
+        "mantleFrontBoost": 1.92,
+        "headBackR": 0.80,
+        "headForeheadR": 0.70,
+        "headForeheadH": 0.19,
+        "armCrownRadius": 0.16,
+        "armDropScale": 0.95,
+        "mantleShoulderBoost": 1.70,
+        "mantleRadius": 0.85,
+        "mantleHeight": 0.13
+      }
+    }
+  }
+}

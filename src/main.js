@@ -68,6 +68,8 @@ function applyPreset(scene, presetName) {
 }
 
 const aquariumScene = new AquariumScene(document.getElementById('canvas-container'));
+// Expose for debugging / Playwright / devtools
+window.aquariumScene = aquariumScene;
 
 if (aquariumScene._dead) {
   document.getElementById('ui-root').style.display = 'none';

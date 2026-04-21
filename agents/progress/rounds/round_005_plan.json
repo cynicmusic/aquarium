@@ -1,0 +1,44 @@
+{
+  "focus": "max paddle from above + arms stay splayed horizontal (no droop) + head disappears into mantle",
+  "candidates": {
+    "A": {
+      "hypothesis": "MAX PADDLE — big shoulder boost + wider mantle radius",
+      "mutations": {
+        "mantleShoulderBoost": 1.40,
+        "mantleRadius": 0.72,
+        "mantleHeight": 0.19
+      }
+    },
+    "B": {
+      "hypothesis": "ARMS HORIZONTAL — drop-scale down so arms stay splayed, not drooping",
+      "mutations": {
+        "armDropScale": 0.35,
+        "armCurl": 0.40,
+        "armLength": 0.78,
+        "armCrownRadius": 0.34
+      }
+    },
+    "C": {
+      "hypothesis": "FULL BLEND — head back matches mantle radius, tilt minimal",
+      "mutations": {
+        "headBackR": 0.68,
+        "headBackH": 0.26,
+        "headTiltDown": 0.08,
+        "headBaseY": 0.14
+      }
+    },
+    "D": {
+      "hypothesis": "COMBINE ALL — shoulder boost + horizontal arms + blended head (moderate each)",
+      "mutations": {
+        "mantleShoulderBoost": 1.28,
+        "mantleRadius": 0.68,
+        "armDropScale": 0.45,
+        "armCurl": 0.42,
+        "armCrownRadius": 0.32,
+        "headBackR": 0.62,
+        "headTiltDown": 0.12,
+        "headBaseY": 0.18
+      }
+    }
+  }
+}

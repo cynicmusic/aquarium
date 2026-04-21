@@ -1,0 +1,50 @@
+{
+  "focus": "final polish — closed-tulip arm crown + flatter head-on mantle + zebra closure",
+  "candidates": {
+    "A": {
+      "hypothesis": "CLOSED TULIP — tightest crown, max curl, arms bundle forward",
+      "mutations": {
+        "armCrownRadius": 0.10,
+        "armCurl": 0.92,
+        "armLength": 0.66,
+        "armDropScale": 0.50
+      }
+    },
+    "B": {
+      "hypothesis": "FLAT HEAD-ON — reduce mantleHeight so front view reads wider-than-tall",
+      "mutations": {
+        "mantleHeight": 0.10,
+        "mantleRadius": 0.94,
+        "mantleShoulderBoost": 1.90
+      }
+    },
+    "C": {
+      "hypothesis": "BALANCED FINAL — gentle everything, aiming for a polished endpoint",
+      "mutations": {
+        "armCrownRadius": 0.12,
+        "armCurl": 0.85,
+        "armLength": 0.68,
+        "armDropScale": 0.55,
+        "mantleHeight": 0.11,
+        "mantleRadius": 0.92,
+        "zebraFrequency": 11,
+        "zebraSharpness": 5.5
+      }
+    },
+    "D": {
+      "hypothesis": "COMBINE — tightest tulip + flat mantle + polished zebra",
+      "mutations": {
+        "armCrownRadius": 0.11,
+        "armCurl": 0.88,
+        "armLength": 0.66,
+        "armDropScale": 0.52,
+        "mantleHeight": 0.10,
+        "mantleRadius": 0.94,
+        "mantleShoulderBoost": 1.85,
+        "zebraFrequency": 11,
+        "zebraSharpness": 5.5,
+        "zebraIntensity": 1.05
+      }
+    }
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "focus": "final polish — broaden dorsal further + eyes atop continuous dome + full-length fin + last zebra refine",
+  "candidates": {
+    "A": {
+      "hypothesis": "WIDER PADDLE + EYES ATOP — shoulder boost + station earlier + higher rise",
+      "mutations": {
+        "mantleShoulderBoost": 1.70,
+        "mantleRadius": 0.84,
+        "eyeStation": 0.24,
+        "eyeRiseY": 1.10,
+        "eyeTiltUp": 0.10
+      }
+    },
+    "B": {
+      "hypothesis": "LONG FIN — push finExtend past tail so skirt completes the silhouette",
+      "mutations": {
+        "finExtend": 1.40,
+        "finWidth": 0.32,
+        "finBumpAmp": 0.35,
+        "zebraFrequency": 11
+      }
+    },
+    "C": {
+      "hypothesis": "MATCHED ZEBRA — moderate frequency, moderate sharpness, classic sepia bars",
+      "mutations": {
+        "zebraFrequency": 11,
+        "zebraSharpness": 6.0,
+        "zebraIntensity": 1.08
+      }
+    },
+    "D": {
+      "hypothesis": "FINAL COMBINE — wider paddle + eyes atop + long fin + classic zebra",
+      "mutations": {
+        "mantleShoulderBoost": 1.60,
+        "mantleRadius": 0.82,
+        "eyeStation": 0.26,
+        "eyeRiseY": 1.05,
+        "eyeTiltUp": 0.12,
+        "finExtend": 1.30,
+        "finWidth": 0.30,
+        "zebraFrequency": 11,
+        "zebraSharpness": 6.2,
+        "zebraIntensity": 1.05
+      }
+    }
+  }
+}

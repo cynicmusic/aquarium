@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Skin texture sheet — chromatophore variants</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#07080f; color:#cde; font:11px/1.3 monospace; padding:8px; }
+  #top { display:flex; gap:8px; margin-bottom:8px; }
+  #top .ref { flex:0 0 360px; background:#0a0b14; padding:6px; }
+  #top .ref img { width:100%; display:block; }
+  #top .legend { flex:1; color:#9ab; padding:8px; line-height:1.6; }
+  #grid { display:grid; grid-template-columns: repeat(4, 1fr); gap:6px; }
+  .cell { position:relative; background:#0a0b14; aspect-ratio: 1.5; overflow:hidden; }
+  canvas { width:100%; height:100%; display:block; }
+  .lbl { position:absolute; top:4px; left:6px; color:#9ab; font-size:10px; background:rgba(0,0,0,0.5); padding:2px 5px; border-radius:2px; }
+  .lbl b { color:#bde; }
+</style>
+</head>
+<body>
+<div id="top">
+  <div class="ref">
+    <div style="color:#7bd;margin-bottom:4px;font-weight:bold">MASTER REFERENCE</div>
+    <img src="/examples/external/cuttle/master reference.png">
+  </div>
+  <div class="legend">
+    <b>Skin texture sheet.</b><br>
+    16 flat UV-plane tiles using the live <code>ChromatophoreMaterial</code>.<br>
+    Rows sweep <code>uZebraIntensity</code> × <code>uZebraFrequency</code>.<br>
+    Columns sweep <code>uIridoIntensity</code> × <code>uChromaDensity</code>.<br>
+    All tiles animate in real time — reload to watch bursts propagate.<br>
+    Pick the tile that best matches the master reference's banding + iridescence balance,
+    then port its params back to the cuttlefish preview.
+  </div>
+</div>
+<div id="grid"></div>
+<script type="module" src="/src/workshop/SkinSheet.js"></script>
+</body>
+</html>

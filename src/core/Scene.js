@@ -9,7 +9,6 @@ import { CoralSystem } from '../environment/CoralSystem.js';
 import { FishManager } from '../entities/FishManager.js';
 import { CrabSystem } from '../entities/CrabSystem.js';
 import { SeafloorCreatures } from '../entities/SeafloorCreatures.js';
-
 export class AquariumScene {
   constructor(container) {
     this.container = container;
@@ -207,7 +206,9 @@ export class AquariumScene {
       }
     `;
 
-    const rippleGeo = new THREE.PlaneGeometry(130, 90);
+    // Extend the ripple plane so the refracted shader fills more of the
+    // background and doesn't stop at the edges of the frame.
+    const rippleGeo = new THREE.PlaneGeometry(260, 180);
     this.bgRippleMat = new THREE.ShaderMaterial({
       vertexShader: rippleVertex,
       fragmentShader: rippleFragment,
@@ -220,6 +221,24 @@ export class AquariumScene {
     ripplePlane.position.set(0, 4, -27);
     ripplePlane.renderOrder = 0;
     this.scene.add(ripplePlane);
+
+    // Second, deeper ripple plane — further back, fainter, broader, so the
+    // refracted ocean extends into the far distance.
+    const deepGeo = new THREE.PlaneGeometry(420, 260);
+    const deepMat = new THREE.ShaderMaterial({
+      vertexShader: rippleVertex,
+      fragmentShader: rippleFragment,
+      uniforms: { uTime: { value: 0 } },
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      opacity: 0.4,
+    });
+    const deepPlane = new THREE.Mesh(deepGeo, deepMat);
+    deepPlane.position.set(0, 8, -60);
+    deepPlane.renderOrder = -1;
+    this.scene.add(deepPlane);
+    this.bgRippleDeepMat = deepMat;
   }
 
   _createTankBounds() {
@@ -284,6 +303,7 @@ export class AquariumScene {
     this.lighting.update(elapsed);
     this.water.update(elapsed);
     this.plants.update(elapsed, dt);
+    this.coral.update(elapsed);
     this.bubbles.update(dt);
     this.effects.update(elapsed);
     this.fish.update(dt, elapsed);
@@ -291,6 +311,7 @@ export class AquariumScene {
     this.seafloor.update(dt, elapsed);
 
     if (this.bgRippleMat) this.bgRippleMat.uniforms.uTime.value = elapsed;
+    if (this.bgRippleDeepMat) this.bgRippleDeepMat.uniforms.uTime.value = elapsed * 0.6;
     this.renderer.render(this.scene, this.camera);
   }
 

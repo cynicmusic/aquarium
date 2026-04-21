@@ -651,29 +651,12 @@ export function createFishMesh(type) {
     group.add(fin);
   }
 
-  // ── Eye ──
+  // ── Eye (shimmer dome) ──
   const eye = profile.eye;
   if (eye) {
-    // White
-    const eyeWhiteGeo = new THREE.CircleGeometry(eye.r * 1.4, 16);
-    const eyeWhiteMat = new THREE.MeshStandardMaterial({ color: 0xf0f0f0, side: THREE.DoubleSide });
-    const eyeWhite = new THREE.Mesh(eyeWhiteGeo, eyeWhiteMat);
-    eyeWhite.position.set(eye.x, eye.y, 0.1);
-    group.add(eyeWhite);
-
-    // Pupil
-    const pupilGeo = new THREE.CircleGeometry(eye.r * 0.8, 16);
-    const pupilMat = new THREE.MeshStandardMaterial({ color: 0x101010, side: THREE.DoubleSide });
-    const pupil = new THREE.Mesh(pupilGeo, pupilMat);
-    pupil.position.set(eye.x + eye.r * 0.15, eye.y, 0.11);
-    group.add(pupil);
-
-    // Glint
-    const glintGeo = new THREE.CircleGeometry(eye.r * 0.25, 8);
-    const glintMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.5, side: THREE.DoubleSide });
-    const glint = new THREE.Mesh(glintGeo, glintMat);
-    glint.position.set(eye.x + eye.r * 0.3, eye.y + eye.r * 0.2, 0.12);
-    group.add(glint);
+    const eyeGroup = _buildShimmerEye(eye, pattern.colors[0]);
+    eyeGroup.position.set(eye.x, eye.y, 0.11);
+    group.add(eyeGroup);
   }
 
   // Center the geometry so the fish pivots from its center
@@ -685,6 +668,102 @@ export function createFishMesh(type) {
   });
 
   return group;
+}
+
+/**
+ * Build a shimmer eye — a small hemisphere cornea over a pigmented iris disc and
+ * a tiny inset pupil, plus a moving catchlight and an iridescent ring.
+ * Replaces the old flat 3-circle stack with something that reads as a real eye.
+ */
+function _buildShimmerEye(eye, speciesTint = '#ffcc66') {
+  const g = new THREE.Group();
+  const R = eye.r;
+
+  // 1. Sclera / eye-white backdrop (slightly recessed, off-white)
+  const scleraGeo = new THREE.CircleGeometry(R * 1.55, 32);
+  const scleraMat = new THREE.MeshStandardMaterial({
+    color: 0xf4efe6, roughness: 0.6, metalness: 0.0, side: THREE.DoubleSide,
+  });
+  const sclera = new THREE.Mesh(scleraGeo, scleraMat);
+  sclera.position.z = -0.004;
+  g.add(sclera);
+
+  // 2. Iris ring — species-tinted, metallic, with emissive glow (tapetum-lucidum vibe)
+  const tint = new THREE.Color(speciesTint);
+  const iris = new THREE.Mesh(
+    new THREE.RingGeometry(R * 0.45, R * 1.2, 64),
+    new THREE.MeshStandardMaterial({
+      color: tint,
+      emissive: tint.clone().multiplyScalar(0.35),
+      emissiveIntensity: 0.55,
+      metalness: 0.65, roughness: 0.28, side: THREE.DoubleSide,
+    })
+  );
+  iris.position.z = 0.001;
+  g.add(iris);
+
+  // 3. Pupil (slight vertical oval, sunken inward)
+  const pupilMat = new THREE.MeshStandardMaterial({
+    color: 0x050505, roughness: 0.15, metalness: 0.0, side: THREE.DoubleSide,
+  });
+  const pupil = new THREE.Mesh(new THREE.CircleGeometry(R * 0.55, 48), pupilMat);
+  pupil.scale.set(0.92, 1.0, 1.0);
+  pupil.position.z = 0.004;
+  g.add(pupil);
+
+  // 4. Iridescent thin ring between pupil and iris (gold → teal shimmer)
+  const shimmerGeo = new THREE.RingGeometry(R * 0.52, R * 0.62, 64);
+  // Per-vertex colour around the ring for a cheap rainbow
+  const colArr = new Float32Array(shimmerGeo.attributes.position.count * 3);
+  const pos = shimmerGeo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const ang = Math.atan2(pos.getY(i), pos.getX(i));
+    const h = (ang + Math.PI) / (Math.PI * 2);
+    const col = new THREE.Color().setHSL((h + 0.15) % 1, 0.85, 0.62);
+    colArr[i * 3] = col.r; colArr[i * 3 + 1] = col.g; colArr[i * 3 + 2] = col.b;
+  }
+  shimmerGeo.setAttribute('color', new THREE.BufferAttribute(colArr, 3));
+  const shimmer = new THREE.Mesh(shimmerGeo, new THREE.MeshBasicMaterial({
+    vertexColors: true, transparent: true, opacity: 0.9, side: THREE.DoubleSide,
+    blending: THREE.AdditiveBlending,
+  }));
+  shimmer.position.z = 0.007;
+  g.add(shimmer);
+
+  // 5. Cornea — small glossy hemisphere in front (catches light)
+  const corneaGeo = new THREE.SphereGeometry(R * 1.05, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.45);
+  const corneaMat = new THREE.MeshPhysicalMaterial({
+    color: 0xffffff, roughness: 0.05, metalness: 0.0,
+    transmission: 0.85, thickness: 0.1, ior: 1.33,
+    clearcoat: 1.0, clearcoatRoughness: 0.02,
+    transparent: true, opacity: 0.35,
+  });
+  const cornea = new THREE.Mesh(corneaGeo, corneaMat);
+  cornea.rotation.x = -Math.PI / 2;
+  cornea.position.z = 0.012;
+  g.add(cornea);
+
+  // 6. Main catchlight — top-left bright dot
+  const glint = new THREE.Mesh(
+    new THREE.CircleGeometry(R * 0.22, 20),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.95 })
+  );
+  glint.position.set(-R * 0.28, R * 0.35, 0.018);
+  g.add(glint);
+
+  // 7. Secondary micro-glint — small cyan-tinted sparkle on bottom-right
+  const sparkle = new THREE.Mesh(
+    new THREE.CircleGeometry(R * 0.08, 12),
+    new THREE.MeshBasicMaterial({ color: 0xbbeeff, transparent: true, opacity: 0.9,
+      blending: THREE.AdditiveBlending })
+  );
+  sparkle.position.set(R * 0.28, -R * 0.28, 0.018);
+  g.add(sparkle);
+
+  // Tag the shimmer ring so FishManager can spin it per frame
+  g.userData.shimmerRing = shimmer;
+  g.userData.eyeGroup = true;
+  return g;
 }
 
 function _computeFishUVs(geometry) {

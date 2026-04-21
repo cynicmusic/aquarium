@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Cuttlefish Preview</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; background:#07080f; color:#ccc; font:12px/1.4 monospace; }
+  body { display:flex; }
+  #view { flex:1; position:relative; }
+  canvas { display:block; }
+  #panel { width:310px; background:#101219; border-left:1px solid #222; padding:10px; overflow-y:auto; }
+  #panel .kill { width:100%; margin:0 0 8px 0; background:#522; border:1px solid #844; color:#fdd; padding:7px; font:12px monospace; cursor:pointer; border-radius:3px; }
+  #panel .kill:hover { background:#733; color:#fee; }
+  h3 { color:#7bd; font-size:11px; text-transform:uppercase; margin:10px 0 6px; letter-spacing:1px; }
+  .row { display:flex; align-items:center; margin-bottom:4px; }
+  .row label { width:118px; color:#889; font-size:11px; }
+  .row input[type=range] { flex:1; }
+  .row .v { width:48px; text-align:right; color:#aaa; font-size:11px; }
+  a.back { color:#559; display:block; margin-bottom:8px; text-decoration:none; }
+  a.back:hover { color:#77b; }
+  #info { position:absolute; bottom:8px; left:10px; color:#aab; background:rgba(0,0,0,0.5); padding:4px 8px; border-radius:3px; }
+  button { width:100%; background:#234; color:#bcf; border:1px solid #456; padding:6px; font:12px monospace; cursor:pointer; margin:4px 0; border-radius:3px; }
+  button:hover { background:#345; color:#def; }
+  button.paste { background:#243; border-color:#465; color:#cfb; }
+  button.paste:hover { background:#354; color:#dfc; }
+  #copyNote { color:#6a8; font-size:10px; text-align:center; margin-bottom:6px; min-height:12px; }
+  #mode-buttons { position:absolute; top:10px; right:10px; display:flex; gap:6px; z-index:10; align-items:center; }
+  #mode-buttons button { width:auto; padding:8px 14px; font-size:12px; border-radius:4px; box-shadow:0 1px 3px rgba(0,0,0,0.5); }
+  #mode-buttons button.active { background:#584; border-color:#8b6; color:#fff; box-shadow:0 0 10px #6a4; }
+  #mode-buttons .cam { padding:8px 8px; min-width:26px; background:#223; border-color:#334; color:#9ac; }
+  #mode-buttons .cam.active { background:#356; border-color:#68a; color:#fff; box-shadow:0 0 8px #48a; }
+  #mode-buttons .cam.z1 { background:#234; border-color:#345; }    /* 10–15% pulled back */
+  #mode-buttons .cam.z2 { background:#245; border-color:#358; }    /* 25–35% pulled back */
+  #mode-buttons .cam.ac { background:#443; border-color:#aa5; color:#ffd; }
+  #mode-buttons .cam.ac.active { background:#a92; border-color:#fd4; color:#fff; box-shadow:0 0 10px #fd4; }
+  #mode-buttons .sep { width:1px; height:22px; background:#334; margin:0 2px; }
+</style>
+</head>
+<body>
+<div id="view">
+  <div id="info">drag to rotate • live chromatophore simulation</div>
+  <div id="mode-buttons">
+    <button id="swimBtn" title="Camera follows as he swims">🏊 Swim mode</button>
+    <span class="sep"></span>
+    <button id="cam1" class="cam" title="Camera 1 — chase">1</button>
+    <button id="cam2" class="cam" title="Camera 2 — high chase">2</button>
+    <button id="cam3" class="cam" title="Camera 3 — low belly">3</button>
+    <button id="cam4" class="cam" title="Camera 4 — wide side">4</button>
+    <button id="cam5" class="cam z1" title="Camera 5 — chase (pulled back)">5</button>
+    <button id="cam6" class="cam z1" title="Camera 6 — high chase (pulled back)">6</button>
+    <button id="cam7" class="cam z2" title="Camera 7 — low belly (far)">7</button>
+    <button id="cam8" class="cam z2" title="Camera 8 — wide side (far)">8</button>
+    <button id="camAuto" class="cam ac" title="Autocam — cycle cameras at varying intervals">ac</button>
+  </div>
+</div>
+<div id="panel">
+  <a class="back" href="/">← Back</a>
+
+  <button id="panelKill" class="kill" title="Remove the params panel for this session">✕ disable params panel</button>
+  <button id="copyJson">📋 Copy params as JSON</button>
+  <button id="pasteJson" class="paste">📥 Paste params JSON</button>
+  <div id="copyNote"></div>
+
+  <h3>Animation</h3>
+  <div class="row"><label>Time Scale</label><input type="range" min="0" max="500" value="200" id="animSpeed"><span class="v">2.00</span></div>
+  <div class="row"><label>Rotation</label><input type="range" min="0" max="100" value="4" id="rotSpeed"><span class="v">0.04</span></div>
+
+  <h3>Mantle</h3>
+  <div class="row"><label>Length</label><input type="range" min="100" max="350" value="350" id="mantleLength"><span class="v">3.50</span></div>
+  <div class="row"><label>Radius</label><input type="range" min="20" max="120" value="46" id="mantleRadius"><span class="v">0.46</span></div>
+  <div class="row"><label>Height</label><input type="range" min="5" max="40" value="40" id="mantleHeight"><span class="v">0.40</span></div>
+  <div class="row"><label>Taper</label><input type="range" min="10" max="200" value="98" id="mantleTaper"><span class="v">0.98</span></div>
+  <div class="row"><label>Shoulder Boost</label><input type="range" min="100" max="250" value="115" id="mantleShoulderBoost"><span class="v">1.15</span></div>
+  <div class="row"><label>Front Boost</label><input type="range" min="100" max="250" value="123" id="mantleFrontBoost"><span class="v">1.23</span></div>
+
+  <h3>Head (spline)</h3>
+  <div class="row"><label>Head Length</label><input type="range" min="20" max="120" value="120" id="headLength"><span class="v">1.20</span></div>
+  <div class="row"><label>Head Tilt</label><input type="range" min="-30" max="80" value="-16" id="headTiltDown"><span class="v">-0.16</span></div>
+  <div class="row"><label>Head Recess</label><input type="range" min="-30" max="80" value="66" id="headRecess"><span class="v">0.66</span></div>
+  <div class="row"><label>Base Y</label><input type="range" min="-30" max="50" value="10" id="headBaseY"><span class="v">0.10</span></div>
+  <div class="row"><label>Mouth Y</label><input type="range" min="-40" max="20" value="-14" id="headMouthY"><span class="v">-0.14</span></div>
+  <div class="row"><label>Back R (neck)</label><input type="range" min="10" max="140" value="62" id="headBackR"><span class="v">0.62</span></div>
+  <div class="row"><label>Back H (neck)</label><input type="range" min="5" max="70" value="26" id="headBackH"><span class="v">0.26</span></div>
+  <div class="row"><label>Forehead R</label><input type="range" min="20" max="90" value="68" id="headForeheadR"><span class="v">0.68</span></div>
+  <div class="row"><label>Forehead H</label><input type="range" min="5" max="50" value="48" id="headForeheadH"><span class="v">0.48</span></div>
+  <div class="row"><label>Eye-station R</label><input type="range" min="20" max="90" value="47" id="headEyeR"><span class="v">0.47</span></div>
+  <div class="row"><label>Eye-station H</label><input type="range" min="10" max="50" value="38" id="headEyeH"><span class="v">0.38</span></div>
+  <div class="row"><label>Cheek R</label><input type="range" min="10" max="60" value="32" id="headCheekR"><span class="v">0.32</span></div>
+  <div class="row"><label>Cheek H</label><input type="range" min="5" max="40" value="29" id="headCheekH"><span class="v">0.29</span></div>
+  <div class="row"><label>Mouth R</label><input type="range" min="2" max="40" value="12" id="headMouthR"><span class="v">0.12</span></div>
+
+  <h3>Eye & W-pupil</h3>
+  <div class="row"><label>Eye Radius</label><input type="range" min="4" max="25" value="8" id="eyeRadius"><span class="v">0.08</span></div>
+  <div class="row"><label>Eye Station</label><input type="range" min="10" max="90" value="30" id="eyeStation"><span class="v">0.30</span></div>
+  <div class="row"><label>Rise Y</label><input type="range" min="0" max="200" value="95" id="eyeRiseY"><span class="v">0.95</span></div>
+  <div class="row"><label>Lateral Pad</label><input type="range" min="-100" max="50" value="-45" id="eyeLateralPad"><span class="v">-0.045</span></div>
+  <div class="row"><label>Tilt Up</label><input type="range" min="-30" max="80" value="29" id="eyeTiltUp"><span class="v">0.29</span></div>
+  <div class="row"><label>Forward Yaw</label><input type="range" min="-30" max="100" value="64" id="eyeForwardYaw"><span class="v">0.64</span></div>
+  <div class="row"><label>Spread</label><input type="range" min="0" max="150" value="40" id="eyeSpread"><span class="v">0.40</span></div>
+  <div class="row"><label>W Width</label><input type="range" min="50" max="300" value="74" id="pupilScaleW"><span class="v">0.74</span></div>
+  <div class="row"><label>W Height</label><input type="range" min="30" max="150" value="81" id="pupilScaleH"><span class="v">0.81</span></div>
+
+  <h3>Fins</h3>
+  <div class="row"><label>Width</label><input type="range" min="5" max="60" value="60" id="finWidth"><span class="v">0.60</span></div>
+  <div class="row"><label>Ripples</label><input type="range" min="2" max="12" value="9" id="finRipples"><span class="v">9</span></div>
+  <div class="row"><label>Ripple Amp</label><input type="range" min="0" max="200" value="64" id="finRippleAmp"><span class="v">0.064</span></div>
+  <div class="row"><label>Extend</label><input type="range" min="60" max="180" value="180" id="finExtend"><span class="v">1.80</span></div>
+  <div class="row"><label>Bump Freq</label><input type="range" min="10" max="80" value="34" id="finBumpFreq"><span class="v">3.40</span></div>
+  <div class="row"><label>Bump Amp</label><input type="range" min="0" max="100" value="35" id="finBumpAmp"><span class="v">0.35</span></div>
+  <div class="row"><label>Lateral Amp</label><input type="range" min="0" max="150" value="60" id="finLateralAmp"><span class="v">0.60</span></div>
+
+  <h3>Arms & Crown</h3>
+  <div class="row"><label>Arm Length</label><input type="range" min="20" max="150" value="120" id="armLength"><span class="v">1.20</span></div>
+  <div class="row"><label>Arm Curl</label><input type="range" min="0" max="100" value="71" id="armCurl"><span class="v">0.71</span></div>
+  <div class="row"><label>Arm Base R</label><input type="range" min="20" max="120" value="75" id="armBaseRadius"><span class="v">0.075</span></div>
+  <div class="row"><label>Crown Radius</label><input type="range" min="5" max="60" value="5" id="armCrownRadius"><span class="v">0.05</span></div>
+  <div class="row"><label>Drop Scale</label><input type="range" min="0" max="300" value="200" id="armDropScale"><span class="v">2.00</span></div>
+  <div class="row"><label>Gravity</label><input type="range" min="0" max="200" value="70" id="armGravity"><span class="v">0.70</span></div>
+
+  <h3>Tentacles</h3>
+  <div class="row"><label>Length</label><input type="range" min="40" max="350" value="240" id="tentacleLength"><span class="v">2.40</span></div>
+  <div class="row"><label>Extension</label><input type="range" min="0" max="100" value="80" id="tentacleExtension"><span class="v">0.80</span></div>
+  <div class="row"><label>Club R</label><input type="range" min="5" max="180" value="100" id="tentacleClubRadius"><span class="v">0.100</span></div>
+  <div class="row"><label>Base R</label><input type="range" min="2" max="80" value="25" id="tentacleBaseRadius"><span class="v">0.025</span></div>
+  <div class="row"><label>Tip R</label><input type="range" min="1" max="20" value="3" id="tentacleTipRadius"><span class="v">0.003</span></div>
+  <div class="row"><label>Drop</label><input type="range" min="0" max="200" value="50" id="tentacleDrop"><span class="v">0.50</span></div>
+  <div class="row"><label>Hide Tentacles</label><input type="checkbox" id="hideTentacles"></div>
+
+  <h3>Skin shader</h3>
+  <div class="row"><label>Chromato Dens</label><input type="range" min="8" max="120" value="88" id="chromaDensity"><span class="v">88</span></div>
+  <div class="row"><label>Chromato Amt</label><input type="range" min="0" max="100" value="85" id="chromaIntensity"><span class="v">0.85</span></div>
+  <div class="row"><label>Irido Amt</label><input type="range" min="0" max="300" value="200" id="iridoIntensity"><span class="v">2.00</span></div>
+  <div class="row"><label>Irido Hue</label><input type="range" min="0" max="300" value="161" id="iridoHueRange"><span class="v">1.61</span></div>
+
+  <h3>Zebra pattern</h3>
+  <div class="row"><label>Intensity</label><input type="range" min="0" max="200" value="105" id="zebraIntensity"><span class="v">1.05</span></div>
+  <div class="row"><label>Frequency</label><input type="range" min="2" max="40" value="11" id="zebraFrequency"><span class="v">11</span></div>
+  <div class="row"><label>Sharpness</label><input type="range" min="5" max="150" value="55" id="zebraSharpness"><span class="v">5.5</span></div>
+  <div class="row"><label>Scale X</label><input type="range" min="20" max="500" value="100" id="zebraScaleX"><span class="v">1.00</span></div>
+  <div class="row"><label>Scale Y</label><input type="range" min="20" max="500" value="100" id="zebraScaleY"><span class="v">1.00</span></div>
+  <div class="row"><label>Offset X</label><input type="range" min="-100" max="100" value="0" id="zebraOffsetX"><span class="v">0.00</span></div>
+  <div class="row"><label>Offset Y</label><input type="range" min="-100" max="100" value="0" id="zebraOffsetY"><span class="v">0.00</span></div>
+  <div class="row"><label>Rotation</label><input type="range" min="-314" max="314" value="0" id="zebraRotation"><span class="v">0.00</span></div>
+  <div class="row"><label>Gate Lo (U)</label><input type="range" min="0" max="50" value="18" id="zebraGateLo"><span class="v">0.18</span></div>
+  <div class="row"><label>Gate Hi (U)</label><input type="range" min="50" max="100" value="82" id="zebraGateHi"><span class="v">0.82</span></div>
+
+</div>
+<script type="module" src="/src/workshop/CuttlefishPreview.js"></script>
+</body>
+</html>

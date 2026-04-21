@@ -1,0 +1,47 @@
+{
+  "focus": "readable W-pupil (now pure black + thicker extrude) + more head-to-mantle fusion + zebra variants",
+  "candidates": {
+    "A": {
+      "hypothesis": "WIDE PUPIL — push W width even further so it dominates the iris",
+      "mutations": {
+        "pupilScaleW": 2.00,
+        "pupilScaleH": 0.95,
+        "eyeRadius": 0.145,
+        "eyeForwardYaw": 0.55
+      }
+    },
+    "B": {
+      "hypothesis": "MAX FUSE — front boost 1.7 + lower forehead so head is mantle's continuation",
+      "mutations": {
+        "mantleFrontBoost": 1.70,
+        "headForeheadH": 0.22,
+        "headBaseY": 0.14,
+        "headTiltDown": 0.05,
+        "zebraIntensity": 1.00
+      }
+    },
+    "C": {
+      "hypothesis": "BAND ZEBRA — cleaner banding + smaller eye station (more forward)",
+      "mutations": {
+        "zebraFrequency": 12,
+        "zebraSharpness": 6.5,
+        "eyeStation": 0.28,
+        "eyeRiseY": 1.00
+      }
+    },
+    "D": {
+      "hypothesis": "COMBINE — wide pupil + max fuse + clean zebra",
+      "mutations": {
+        "pupilScaleW": 1.90,
+        "pupilScaleH": 0.90,
+        "eyeRadius": 0.14,
+        "eyeForwardYaw": 0.55,
+        "mantleFrontBoost": 1.65,
+        "headForeheadH": 0.24,
+        "headBaseY": 0.15,
+        "zebraFrequency": 11,
+        "zebraSharpness": 5.8
+      }
+    }
+  }
+}

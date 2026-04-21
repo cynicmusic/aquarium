@@ -1,0 +1,50 @@
+{
+  "focus": "broader dorsal oval from above + deeper head-mantle fuse (continuous dome) + zebra iteration",
+  "candidates": {
+    "A": {
+      "hypothesis": "WIDE SHOULDERS — push mantleShoulderBoost hard + headBackR matches mantle exactly",
+      "mutations": {
+        "mantleShoulderBoost": 1.75,
+        "mantleRadius": 0.82,
+        "mantleFrontBoost": 1.95,
+        "headBackR": 0.82,
+        "headBackH": 0.28
+      }
+    },
+    "B": {
+      "hypothesis": "DOME FUSION — head length shorter, height matches mantle, tilt zero",
+      "mutations": {
+        "headLength": 0.42,
+        "headForeheadH": 0.18,
+        "headBaseY": 0.10,
+        "headTiltDown": 0.00,
+        "headBackR": 0.78,
+        "headForeheadR": 0.68
+      }
+    },
+    "C": {
+      "hypothesis": "RIPPLE ZEBRA — moderate frequency but higher sharpness for crisp bars",
+      "mutations": {
+        "zebraFrequency": 14,
+        "zebraSharpness": 8.0,
+        "zebraIntensity": 1.05
+      }
+    },
+    "D": {
+      "hypothesis": "COMBINE — wide shoulders + dome fusion + crisp zebra",
+      "mutations": {
+        "mantleShoulderBoost": 1.65,
+        "mantleRadius": 0.80,
+        "mantleFrontBoost": 1.90,
+        "headLength": 0.46,
+        "headForeheadH": 0.20,
+        "headBaseY": 0.11,
+        "headTiltDown": 0.02,
+        "headBackR": 0.80,
+        "headForeheadR": 0.66,
+        "zebraFrequency": 12,
+        "zebraSharpness": 7.0
+      }
+    }
+  }
+}

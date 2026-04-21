@@ -1,0 +1,48 @@
+{
+  "focus": "unbroken leaf-arch dorsal + W-pupil readable in profile + tighter arm crown",
+  "candidates": {
+    "A": {
+      "hypothesis": "FORWARD-CROWN ARCH — A's fused arch + D's forward-set eyes",
+      "mutations": {
+        "eyeForwardX": 0.28,
+        "eyeLateralZ": 0.55,
+        "eyeLateralPad": 0.10,
+        "eyeRiseY": 1.15,
+        "eyeTiltUp": 0.60
+      }
+    },
+    "B": {
+      "hypothesis": "BIG EYES — keep arch, enlarge eye so W-pupil reads",
+      "mutations": {
+        "eyeRadius": 0.095,
+        "eyeRiseY": 1.00,
+        "eyeTiltUp": 0.50,
+        "eyeLateralZ": 0.65
+      }
+    },
+    "C": {
+      "hypothesis": "SUPER FUSED — head barely rises off mantle, most unbroken dorsal line",
+      "mutations": {
+        "headPosOffsetX": -0.28,
+        "headSquashY": 0.65,
+        "headRadiusScale": 1.08,
+        "headSquashX": 1.10,
+        "eyeRiseY": 1.10,
+        "eyeTiltUp": 0.55
+      }
+    },
+    "D": {
+      "hypothesis": "COMBINE EVERYTHING — forward eyes + bigger + tighter arm crown",
+      "mutations": {
+        "eyeRadius": 0.090,
+        "eyeForwardX": 0.25,
+        "eyeLateralZ": 0.58,
+        "eyeLateralPad": 0.12,
+        "eyeRiseY": 1.10,
+        "eyeTiltUp": 0.60,
+        "armCrownRadius": 0.08,
+        "armCurl": 0.50
+      }
+    }
+  }
+}

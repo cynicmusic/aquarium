@@ -128,6 +128,10 @@ function animate() {
   for (const entry of fishEntries) {
     entry.root.rotation.y = elapsed * entry.spinRate * spinSpeedMult;
   }
+  // Pulse time uniform so iridophore noise + other time-based layers animate
+  for (const mat of allMaterials) {
+    if (mat.uniforms && mat.uniforms.uTime) mat.uniforms.uTime.value = elapsed;
+  }
 
   renderer.render(scene, camera);
 }
@@ -172,9 +176,16 @@ function setupSliders() {
     });
   }
 
-  // Iridescence
+  // Iridescence (legacy)
   bind('iridIntensity', 'iridIntensity', 0.01);
   bind('iridAngleShift', 'iridAngleShift', 0.01);
+
+  // Iridophore thin-film
+  bind('iridoIntensity',    'iridoIntensity',    0.01);
+  bind('iridoThickness',    'iridoThickness',    0.01);
+  bind('iridoSpectralBias', 'iridoSpectralBias', 0.01);
+  bind('iridoMaskScale',    'iridoMaskScale',    0.1);
+  bind('iridoMaskOpacity',  'iridoMaskOpacity',  0.01);
 
   // Iridescence colors
   const bindColor = (id, key) => {

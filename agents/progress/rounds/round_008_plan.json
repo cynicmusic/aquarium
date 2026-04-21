@@ -1,0 +1,54 @@
+{
+  "focus": "final push: single unbroken dorsal arc + eyes on crown facing camera + big legible W",
+  "candidates": {
+    "A": {
+      "hypothesis": "CONTINUOUS ARC — very low tilt, headBackR = mantle nose width, forehead low",
+      "mutations": {
+        "headTiltDown": 0.04,
+        "headBaseY": 0.12,
+        "headForeheadR": 0.60,
+        "headForeheadH": 0.24,
+        "headBackR": 0.72
+      }
+    },
+    "B": {
+      "hypothesis": "CROWN EYES + LEGIBLE W — station earlier, rise higher, pupil bigger",
+      "mutations": {
+        "eyeStation": 0.30,
+        "eyeRiseY": 0.95,
+        "eyeForwardYaw": 0.65,
+        "eyeTiltUp": 0.12,
+        "eyeRadius": 0.14,
+        "pupilScaleW": 1.65,
+        "pupilScaleH": 0.85
+      }
+    },
+    "C": {
+      "hypothesis": "HEAD PULLED BACK — shorter headLength, headPosOffsetX push further into mantle",
+      "mutations": {
+        "headLength": 0.42,
+        "headForeheadR": 0.55,
+        "headTiltDown": 0.06,
+        "headBaseY": 0.14,
+        "headForeheadH": 0.26
+      }
+    },
+    "D": {
+      "hypothesis": "ALL THREE — continuous arc + crown eyes + pulled-back head",
+      "mutations": {
+        "headLength": 0.48,
+        "headTiltDown": 0.05,
+        "headBaseY": 0.13,
+        "headForeheadR": 0.58,
+        "headForeheadH": 0.26,
+        "headBackR": 0.70,
+        "eyeStation": 0.32,
+        "eyeRiseY": 0.90,
+        "eyeForwardYaw": 0.70,
+        "eyeTiltUp": 0.15,
+        "eyeRadius": 0.135,
+        "pupilScaleW": 1.55
+      }
+    }
+  }
+}

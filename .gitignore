@@ -2,3 +2,10 @@ node_modules/
 dist/
 output/
 .DS_Store
+
+# Transient screenshot dumps (agent debug output) — regenerated on demand
+examples/internal/
+examples/external/
+agents/progress/debug_default.png
+agents/progress/rounds/*.png
+agents/progress/rounds/**/*.png

@@ -1,0 +1,49 @@
+{
+  "focus": "bring back Zoidberg droopy arms (FRONT view horror fix) + neck-gap bridge + zebra variation",
+  "candidates": {
+    "A": {
+      "hypothesis": "ZOIDBERG ARMS — arms droop down like a curtain, tighter crown",
+      "mutations": {
+        "armDropScale": 1.20,
+        "armCurl": 0.65,
+        "armCrownRadius": 0.22,
+        "armLength": 0.90,
+        "mantleFrontBoost": 1.30
+      }
+    },
+    "B": {
+      "hypothesis": "NECK BRIDGE + MED DROOP — widen mantle nose to head-back, mid droop arms",
+      "mutations": {
+        "mantleFrontBoost": 1.45,
+        "armDropScale": 0.85,
+        "armCurl": 0.55,
+        "zebraIntensity": 1.05,
+        "zebraFrequency": 8
+      }
+    },
+    "C": {
+      "hypothesis": "TIGHT ZEBRA — denser bars + stronger droop for dramatic silhouette",
+      "mutations": {
+        "zebraIntensity": 1.10,
+        "zebraFrequency": 16,
+        "zebraSharpness": 6.5,
+        "armDropScale": 1.10,
+        "armCurl": 0.60,
+        "armCrownRadius": 0.24,
+        "mantleFrontBoost": 1.25
+      }
+    },
+    "D": {
+      "hypothesis": "COMBINE — Zoidberg arms + full neck bridge + looser zebra",
+      "mutations": {
+        "armDropScale": 1.15,
+        "armCurl": 0.58,
+        "armCrownRadius": 0.24,
+        "armLength": 0.88,
+        "mantleFrontBoost": 1.40,
+        "zebraIntensity": 0.95,
+        "zebraFrequency": 7
+      }
+    }
+  }
+}

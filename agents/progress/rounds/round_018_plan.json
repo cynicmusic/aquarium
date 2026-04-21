@@ -1,0 +1,43 @@
+{
+  "focus": "resting-pose tentacles (retract, only clubs protrude) + bigger clubs + W-pupil in 3/4",
+  "candidates": {
+    "A": {
+      "hypothesis": "RESTING TENTACLES — very low extension, tentacle tucks into arm crown, only club tip shows",
+      "mutations": {
+        "tentacleExtension": 0.15,
+        "tentacleClubRadius": 0.11,
+        "tentacleLength": 1.80
+      }
+    },
+    "B": {
+      "hypothesis": "BIG CLUB — moderate extension with dramatic fist-like club bulge",
+      "mutations": {
+        "tentacleExtension": 0.30,
+        "tentacleClubRadius": 0.13,
+        "tentacleBaseRadius": 0.010
+      }
+    },
+    "C": {
+      "hypothesis": "EYE POP — stronger inward yaw + bigger pupil so W reads in 3/4",
+      "mutations": {
+        "eyeForwardYaw": 0.20,
+        "eyeTiltUp": 0.26,
+        "pupilScaleW": 2.00,
+        "pupilScaleH": 0.95,
+        "eyeRadius": 0.15
+      }
+    },
+    "D": {
+      "hypothesis": "COMBINE — resting-pose tentacles + big clubs + stronger eye read",
+      "mutations": {
+        "tentacleExtension": 0.20,
+        "tentacleClubRadius": 0.12,
+        "tentacleBaseRadius": 0.010,
+        "eyeForwardYaw": 0.22,
+        "eyeTiltUp": 0.24,
+        "pupilScaleW": 1.95,
+        "eyeRadius": 0.145
+      }
+    }
+  }
+}

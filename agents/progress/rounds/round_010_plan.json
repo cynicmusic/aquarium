@@ -1,0 +1,49 @@
+{
+  "focus": "keep curtain-arm droop + deepen neck fusion + push fin into fuller continuous skirt + zebra variants",
+  "candidates": {
+    "A": {
+      "hypothesis": "FULL SKIRT — wider, taller fins covering more body length with softer edges",
+      "mutations": {
+        "finWidth": 0.34,
+        "finExtend": 1.2,
+        "finBumpFreq": 2.8,
+        "finBumpAmp": 0.30,
+        "finLateralAmp": 0.8,
+        "zebraFrequency": 9
+      }
+    },
+    "B": {
+      "hypothesis": "DEEP FUSION NECK — even bigger front boost so head/mantle are one form",
+      "mutations": {
+        "mantleFrontBoost": 1.55,
+        "armDropScale": 1.25,
+        "zebraIntensity": 0.95,
+        "zebraFrequency": 9,
+        "zebraSharpness": 5.0
+      }
+    },
+    "C": {
+      "hypothesis": "CHEVRON ZEBRA — softer, lower-frequency zebra reads as chevron camouflage",
+      "mutations": {
+        "zebraIntensity": 1.10,
+        "zebraFrequency": 6,
+        "zebraSharpness": 3.8
+      }
+    },
+    "D": {
+      "hypothesis": "COMBINE — full skirt + deep fusion + chevron zebra + max curtain",
+      "mutations": {
+        "finWidth": 0.32,
+        "finExtend": 1.15,
+        "finBumpAmp": 0.35,
+        "finLateralAmp": 0.75,
+        "mantleFrontBoost": 1.45,
+        "armDropScale": 1.22,
+        "armCurl": 0.68,
+        "zebraIntensity": 1.00,
+        "zebraFrequency": 8,
+        "zebraSharpness": 4.5
+      }
+    }
+  }
+}

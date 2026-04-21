@@ -1,0 +1,44 @@
+{
+  "focus": "paddle shoulders from above + eyes higher+forward + blend occiput (no neck)",
+  "candidates": {
+    "A": {
+      "hypothesis": "PADDLE MANTLE — wider shoulders, shallower height for true paddle from above",
+      "mutations": {
+        "mantleRadius": 0.72,
+        "mantleHeight": 0.18,
+        "mantleTaper": 0.86
+      }
+    },
+    "B": {
+      "hypothesis": "HIGH FORWARD EYES — higher rise + stronger forward yaw so W reads",
+      "mutations": {
+        "eyeRiseY": 0.75,
+        "eyeForwardYaw": 0.75,
+        "eyeStation": 0.36,
+        "eyeTiltUp": 0.24
+      }
+    },
+    "C": {
+      "hypothesis": "NO NECK — widen headBackR to match mantle so nape blends seamlessly",
+      "mutations": {
+        "headBackR": 0.64,
+        "headBackH": 0.26,
+        "headTiltDown": 0.14,
+        "headBaseY": 0.24
+      }
+    },
+    "D": {
+      "hypothesis": "ALL THREE — paddle + forward eyes + no-neck blend (moderate each)",
+      "mutations": {
+        "mantleRadius": 0.68,
+        "mantleHeight": 0.19,
+        "mantleTaper": 0.85,
+        "headBackR": 0.60,
+        "headTiltDown": 0.16,
+        "eyeRiseY": 0.70,
+        "eyeForwardYaw": 0.70,
+        "eyeStation": 0.36
+      }
+    }
+  }
+}

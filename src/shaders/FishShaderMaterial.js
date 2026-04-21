@@ -319,11 +319,19 @@ uniform int uDepthBlendMode;  // 0=screen, 1=additive
 uniform float uDepthNoiseOffset;
 uniform float uDepthFreqScale;
 
-// Layer 3: Iridescence
+// Layer 3: Iridescence (legacy fresnel sin-mix)
 uniform float uIridIntensity;
 uniform vec3 uIridColor1;
 uniform vec3 uIridColor2;
 uniform float uIridAngleShift;
+
+// Layer 3b: Iridophore thin-film layer
+uniform float uIridoIntensity;   // 0 = off, 1 = full
+uniform float uIridoThickness;   // effective film thickness (nm/100)
+uniform float uIridoSpectralBias; // shifts the rainbow (0..1)
+uniform float uIridoMaskScale;   // noise frequency for patchNiness
+uniform float uIridoMaskOpacity; // how much the mask cuts through (0=full body, 1=tiny patchNes)
+uniform float uTime;
 
 // Lighting
 uniform vec3 uLightDir;
@@ -391,10 +399,61 @@ void main() {
     composited = scaledColor + depthColor * uDepthOpacity;
   }
 
-  // ── Layer 3: Iridescence ──
+  // ── Layer 3: Iridescence ── (legacy fresnel sin-mix — kept for tuning continuity)
   float iridAngle = vFresnel * 6.28318 + uIridAngleShift;
   vec3 iridColor = mix(uIridColor1, uIridColor2, 0.5 + 0.5 * sin(iridAngle));
   composited += iridColor * uIridIntensity * vFresnel;
+
+  // ── Layer 3b: Iridophore thin-film ──
+  // Approximates thin-film interference colour as a function of optical path length.
+  // pathLen ≈ thickness * cos(θ) — as the viewing angle changes, so does the hue.
+  // Real cuttlefish/neon-tetra iridophores are stacks of platelets; we mimic that by
+  // modulating path length with multi-octave noise so the highlight isn't a single
+  // ring but a shimmering patchNwork.
+  if (uIridoIntensity > 0.001) {
+    float cosTheta = max(0.05, 1.0 - vFresnel);
+    // LAYER A — thin-film interference (per-pixel view-angle rainbow)
+    float patchN = fbm2D(uv * uIridoMaskScale + uTime * 0.05, 1.0, 3);
+    float pathLen = uIridoThickness * (0.5 + 0.5 * patchN) / cosTheta;
+    float phase = pathLen + uIridoSpectralBias * 6.28318;
+    vec3 thinFilm = vec3(
+      0.5 + 0.5 * sin(phase),
+      0.5 + 0.5 * sin(phase + 2.094),
+      0.5 + 0.5 * sin(phase + 4.189)
+    );
+
+    // LAYER B — FBM-driven shimmer patches. Multi-octave noise creates
+    // irregular bright/dark regions that drift slowly with time, giving the
+    // skin a living structural-colour quality on top of the fresnel iridescence.
+    vec2 shimUV = uv * 4.0 + vec2(uTime * 0.08, uTime * 0.05);
+    float shim1 = fbm2D(shimUV, 1.0, 4);
+    float shim2 = fbm2D(shimUV * 2.3 + shim1 * 2.0, 1.0, 3);
+    float shimField = (shim1 * 0.6 + shim2 * 0.4);
+    // Hue-cycled via phase offset so patches have independent colours
+    float shimPhase = shimField * 6.28318 + uTime * 0.3 + uIridoSpectralBias * 3.14;
+    vec3 shimColor = vec3(
+      0.5 + 0.5 * sin(shimPhase),
+      0.5 + 0.5 * sin(shimPhase + 2.094),
+      0.5 + 0.5 * sin(shimPhase + 4.189)
+    );
+    float shimMask = smoothstep(0.35, 0.85, shim2);
+
+    // LAYER C — scale iridescence (hex-row modulated). Amplifies the hex
+    // scale pattern with a rainbow kick per-scale so individual scales glint.
+    float hexScale = scalePattern(uv, uScaleSize * 0.5);
+    float scaleGlint = smoothstep(0.35, 0.65, hexScale) * smoothstep(0.4, 1.0, vFresnel);
+
+    float fresGate = smoothstep(0.30, 0.95, vFresnel);
+    float filmMask = fresGate * smoothstep(0.15, 0.95, patchN);
+    filmMask = mix(fresGate * 0.5, filmMask, uIridoMaskOpacity);
+
+    vec3 sheen = mix(composited, composited * (0.6 + thinFilm), filmMask * uIridoIntensity);
+    // Add FBM shimmer patches (additive, softer)
+    sheen += shimColor * shimMask * uIridoIntensity * 0.35;
+    // Add per-scale glint
+    sheen += vec3(0.85, 0.90, 1.0) * scaleGlint * uIridoIntensity * 0.25;
+    composited = sheen;
+  }
 
   // ── Lighting ──
   float diffuse = max(dot(vNormal, uLightDir), 0.0) * 0.5 + 0.55;  // brighter ambient + diffuse
@@ -527,11 +586,19 @@ export function createFishMaterial(patternConfig, colors, layerParams = {}) {
     uDepthNoiseOffset: { value: layerParams.depthNoiseOffset ?? 3.7 },
     uDepthFreqScale: { value: layerParams.depthFreqScale ?? 0.7 },
 
-    // Layer 3: Iridescence
+    // Layer 3: Iridescence (legacy)
     uIridIntensity: { value: layerParams.iridIntensity ?? 0.08 },
     uIridColor1: { value: new THREE.Color(layerParams.iridColor1 ?? 0x4488ff) },
     uIridColor2: { value: new THREE.Color(layerParams.iridColor2 ?? 0x88ffcc) },
     uIridAngleShift: { value: layerParams.iridAngleShift ?? 0 },
+
+    // Layer 3b: Iridophore thin-film
+    uIridoIntensity:    { value: layerParams.iridoIntensity    ?? 0.0 },
+    uIridoThickness:    { value: layerParams.iridoThickness    ?? 4.0 },
+    uIridoSpectralBias: { value: layerParams.iridoSpectralBias ?? 0.0 },
+    uIridoMaskScale:    { value: layerParams.iridoMaskScale    ?? 14.0 },
+    uIridoMaskOpacity:  { value: layerParams.iridoMaskOpacity  ?? 0.7 },
+    uTime:              { value: 0.0 },
 
     // Lighting
     uLightDir: { value: new THREE.Vector3(0.5, 0.8, 0.6).normalize() },
@@ -562,4 +629,11 @@ export function updateLayerUniforms(material, params) {
   if (params.iridColor1 !== undefined) material.uniforms.uIridColor1.value.set(params.iridColor1);
   if (params.iridColor2 !== undefined) material.uniforms.uIridColor2.value.set(params.iridColor2);
   if (params.iridAngleShift !== undefined) material.uniforms.uIridAngleShift.value = params.iridAngleShift;
+  // Iridophore thin-film layer
+  if (params.iridoIntensity    !== undefined) material.uniforms.uIridoIntensity.value = params.iridoIntensity;
+  if (params.iridoThickness    !== undefined) material.uniforms.uIridoThickness.value = params.iridoThickness;
+  if (params.iridoSpectralBias !== undefined) material.uniforms.uIridoSpectralBias.value = params.iridoSpectralBias;
+  if (params.iridoMaskScale    !== undefined) material.uniforms.uIridoMaskScale.value = params.iridoMaskScale;
+  if (params.iridoMaskOpacity  !== undefined) material.uniforms.uIridoMaskOpacity.value = params.iridoMaskOpacity;
+  if (params.time              !== undefined) material.uniforms.uTime.value = params.time;
 }

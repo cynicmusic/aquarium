@@ -67,7 +67,34 @@ export class FishManager {
     if (!data) { console.warn('Unknown fish:', type); return null; }
 
     const fish3d = buildCompleteFish(data, { widthFactor: 0.55 });
-    const material = createFishMaterial(data.pattern, data.colors);
+    // Every fish gets iridophore shimmer by default — some species more than
+    // others. Pull the multiplier from species JSON if present, else vary by
+    // pattern type (showy reef fish get more, mottled bottom-dwellers less).
+    const patternType = (data.pattern && data.pattern.type) || 'mottled';
+    const PATTERN_IRID = {
+      two_tone_stripe:   0.55,   // neon tetra — heavy iridescence
+      bands_vertical:    0.35,
+      bands_regions:     0.35,
+      bands_with_spots:  0.30,
+      stripes_horizontal:0.32,
+      gradient_iridescent:0.55,
+      gradient_zones:    0.35,
+      composite_scales:  0.25,
+      composite_radial:  0.28,
+      composite_grid:    0.28,
+      composite_spots:   0.22,
+      spots:             0.18,
+      contours:          0.22,
+      mottled:           0.10,   // shy bottom-dweller
+    };
+    const iridMult = data.iridoMultiplier ?? PATTERN_IRID[patternType] ?? 0.25;
+    const material = createFishMaterial(data.pattern, data.colors, {
+      iridoIntensity:   iridMult,
+      iridoThickness:   5.0,
+      iridoMaskScale:   16,
+      iridoMaskOpacity: 0.6,
+      iridoSpectralBias:(fish3d.root.uuid.charCodeAt(0) % 100) / 100,  // species-unique bias
+    });
     const bodyMesh = new THREE.Mesh(fish3d.bodyGeo, material);
     fish3d.root.add(bodyMesh);
 
@@ -193,6 +220,14 @@ export class FishManager {
 
   update(dt, elapsed) {
     if (!this._ready) return;
+    // Pulse per-fish material time uniform for iridophore / time-based layers
+    for (const fish of this.fishes) {
+      fish.mesh.traverse(obj => {
+        if (obj.material && obj.material.uniforms && obj.material.uniforms.uTime) {
+          obj.material.uniforms.uTime.value = elapsed;
+        }
+      });
+    }
     for (const fish of this.fishes) {
       const pos = fish.mesh.position;
 
@@ -263,15 +298,34 @@ export class FishManager {
         }
       }
 
-      // Swimming animation — subtle tail wag
+      // Swimming animation — primary motion is tail wag; body yaw is subtle.
       fish.swimPhase += dt * (2.5 + fish.speed * 1.5);
-      const tailWag = Math.sin(fish.swimPhase) * 0.04;
+      const tailWag = Math.sin(fish.swimPhase) * 0.085;
       if (fish.mesh.children[0]) {
         fish.mesh.children[0].rotation.y = tailWag;
       }
+      // Very small body yaw wobble (not a disco move) so the whole fish looks
+      // like it's swimming rather than sliding. ±1.5° max.
+      if (!fish.turning) {
+        const targetBase = fish.direction > 0 ? Math.PI : 0;
+        fish.mesh.rotation.y = targetBase + Math.sin(fish.swimPhase * 0.35) * 0.026;
+      }
+      // Slight vertical flex
+      fish.mesh.rotation.z = Math.sin(elapsed * 0.8 + fish.swimPhase) * 0.015;
 
-      // Very slight undulation
-      fish.mesh.rotation.z = Math.sin(elapsed * 0.8 + fish.swimPhase) * 0.01;
+      // Spin shimmer rings on eyes — creates the "living" sparkle
+      if (!fish._shimmerRings) {
+        fish._shimmerRings = [];
+        fish.mesh.traverse(obj => {
+          if (obj.userData && obj.userData.shimmerRing) {
+            fish._shimmerRings.push(obj.userData.shimmerRing);
+          }
+        });
+      }
+      if (fish._shimmerRings.length) {
+        const rot = elapsed * 0.6 + fish.swimPhase * 0.4;
+        for (const ring of fish._shimmerRings) ring.rotation.z = rot;
+      }
 
       // Intermittent fish bubbles
       fish.bubbleTimer -= dt;
@@ -288,6 +342,18 @@ export class FishManager {
       if (isNaN(pos.x) || isNaN(pos.y) || isNaN(pos.z)) {
         pos.set(0, fish.personalY, 0);
         fish.turning = false;
+      }
+
+      // Hard bound against Z / Y drift — keep fish on-screen
+      const { tankWidth, tankDepth, tankHeight } = this.aquariumScene.params;
+      if (Math.abs(pos.z) > tankDepth * 0.35) {
+        pos.z = Math.sign(pos.z) * tankDepth * 0.35;
+      }
+      pos.y = Math.max(1.2, Math.min(tankHeight - 0.5, pos.y));
+      // If a fish somehow ended up way past the X turn points, bring it back
+      if (Math.abs(pos.x) > tankWidth * 0.9) {
+        pos.x = Math.sign(pos.x) * tankWidth * 0.5;
+        fish.direction *= -1;
       }
     }
   }

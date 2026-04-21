@@ -175,14 +175,31 @@ export class CoralSystem {
     mesh.position.copy(position);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
-    mesh.rotation.y = Math.random() * Math.PI * 2;
-    // Scale up coral for more prominent reef
+    const baseRot = Math.random() * Math.PI * 2;
+    mesh.rotation.y = baseRot;
     const scale = 1.2 + Math.random() * 1.0;
     mesh.scale.setScalar(scale);
 
     this.aquariumScene.scene.add(mesh);
-    this.corals.push({ mesh, type: typeName, preset });
+    const coralEntry = {
+      mesh, type: typeName, preset,
+      baseRotY: baseRot,
+      basePosY: position.y,
+      swayPhase: Math.random() * Math.PI * 2,
+      swayAmp: 0.018 + Math.random() * 0.015,    // subtle — less than plants
+    };
+    this.corals.push(coralEntry);
     return mesh;
+  }
+
+  update(elapsed) {
+    // Gentle sway for corals — softer than plants. Mostly a slow rotation
+    // around y-axis + micro tilt on z.
+    for (const c of this.corals) {
+      const ph = c.swayPhase;
+      c.mesh.rotation.y = c.baseRotY + Math.sin(elapsed * 0.6 + ph) * c.swayAmp;
+      c.mesh.rotation.z = Math.sin(elapsed * 0.5 + ph * 1.3) * c.swayAmp * 0.7;
+    }
   }
 
   _spawnDefaults() {

@@ -1,0 +1,48 @@
+{
+  "focus": "keep forehead arch + flatten top-down silhouette + rotate eyes forward so W reads",
+  "candidates": {
+    "A": {
+      "hypothesis": "FORWARD-FACING EYES — strong yaw so pupil reads in profile and 3/4",
+      "mutations": {
+        "eyeForwardYaw": 0.70,
+        "eyeTiltUp": 0.25,
+        "eyeStation": 0.38,
+        "eyeRiseY": 0.55
+      }
+    },
+    "B": {
+      "hypothesis": "FLAT LEAF MANTLE — wider mantle radius, shallower height for leaf top-down",
+      "mutations": {
+        "mantleRadius": 0.62,
+        "mantleHeight": 0.20,
+        "mantleTaper": 0.82,
+        "eyeForwardYaw": 0.55
+      }
+    },
+    "C": {
+      "hypothesis": "WIDER HEAD LENS — push head width up and flatten cheek",
+      "mutations": {
+        "headEyeR": 0.62,
+        "headForeheadR": 0.55,
+        "headCheekR": 0.42,
+        "headEyeH": 0.22,
+        "headForeheadH": 0.32,
+        "eyeForwardYaw": 0.60
+      }
+    },
+    "D": {
+      "hypothesis": "COMBINE — wider mantle + wider head + forward eyes (aggressive)",
+      "mutations": {
+        "mantleRadius": 0.60,
+        "mantleHeight": 0.20,
+        "mantleTaper": 0.82,
+        "headEyeR": 0.58,
+        "headForeheadR": 0.52,
+        "headCheekR": 0.40,
+        "headEyeH": 0.22,
+        "eyeForwardYaw": 0.65,
+        "eyeStation": 0.38
+      }
+    }
+  }
+}

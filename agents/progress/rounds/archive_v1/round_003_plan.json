@@ -1,0 +1,53 @@
+{
+  "focus": "fuse head into mantle leaf-arch + keep flattening FRONT + fold D's forward-eye win",
+  "candidates": {
+    "A": {
+      "hypothesis": "FUSED ARCH — head pushed deep into mantle, flatter+wider, no seam",
+      "mutations": {
+        "headPosOffsetX": -0.18,
+        "headSquashX": 1.08,
+        "headSquashY": 0.72,
+        "headRadiusScale": 1.15,
+        "eyeRiseY": 1.05,
+        "eyeLateralZ": 0.68,
+        "eyeTiltUp": 0.55
+      }
+    },
+    "B": {
+      "hypothesis": "FORWARD CROWN — C's leaf body with D's forward-facing eyes",
+      "mutations": {
+        "eyeForwardX": 0.28,
+        "eyeLateralZ": 0.55,
+        "eyeLateralPad": 0.10,
+        "eyeRiseY": 1.05,
+        "eyeTiltUp": 0.55,
+        "headSquashY": 0.76
+      }
+    },
+    "C": {
+      "hypothesis": "WIDER CONTINUOUS — widen mantle so head tapers smoothly from body",
+      "mutations": {
+        "mantleRadius": 0.55,
+        "mantleHeight": 0.22,
+        "mantleTaper": 0.85,
+        "headRadiusScale": 0.95,
+        "headSquashX": 1.05,
+        "headSquashY": 0.80,
+        "eyeRiseY": 1.00,
+        "eyeLateralZ": 0.70
+      }
+    },
+    "D": {
+      "hypothesis": "HIGH NARROW CROWN — narrow head, tall eye prominence",
+      "mutations": {
+        "headSquashX": 0.88,
+        "headSquashY": 0.90,
+        "headRadiusScale": 1.10,
+        "eyeRiseY": 1.25,
+        "eyeLateralZ": 0.55,
+        "eyeTiltUp": 0.60,
+        "eyeLateralPad": 0.12
+      }
+    }
+  }
+}

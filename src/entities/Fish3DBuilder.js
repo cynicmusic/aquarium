@@ -260,45 +260,121 @@ function buildCaudalMesh(points, color) {
 }
 
 /**
- * Build eye as nested circles
+ * Build a shimmer eye — hemisphere cornea over a pigmented iris with a moving
+ * iridescent ring, pupil, and a layered glint. Replaces the old flat-disc eye.
  */
 function buildEye(eyeSpec, body) {
-  const group = new THREE.Group();
-  const r = eyeSpec.r || 0.025;
-
-  // White
-  const whiteGeo = new THREE.CircleGeometry(r * 1.4, 16);
-  const whiteMat = new THREE.MeshBasicMaterial({ color: 0xf0f0f0, side: THREE.DoubleSide });
-  const white = new THREE.Mesh(whiteGeo, whiteMat);
-
-  // Pupil
-  const pupilGeo = new THREE.CircleGeometry(r * 0.8, 16);
-  const pupilMat = new THREE.MeshBasicMaterial({ color: 0x101010, side: THREE.DoubleSide });
-  const pupil = new THREE.Mesh(pupilGeo, pupilMat);
-  pupil.position.z = 0.002;
-
-  // Glint
-  const glintGeo = new THREE.CircleGeometry(r * 0.25, 8);
-  const glintMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-  const glint = new THREE.Mesh(glintGeo, glintMat);
-  glint.position.set(r * 0.3, r * 0.3, 0.004);
-
-  group.add(white, pupil, glint);
-
-  // Clone for other side
-  const group2 = group.clone(true);
-
-  const wrapper = new THREE.Group();
-
-  // Position eyes on both sides of the body
   const topPts = body.top.map(p => ({ x: p[0], y: p[1] }));
   const eyeY = sampleProfile(topPts, eyeSpec.x) * (eyeSpec.yOffset || 0.3);
-  group.position.set(eyeSpec.x, eyeY, 0.05);
-  group2.position.set(eyeSpec.x, eyeY, -0.05);
-  group2.rotation.y = Math.PI;
 
-  wrapper.add(group, group2);
+  const wrapper = new THREE.Group();
+  const side1 = _buildShimmerEye3D(eyeSpec);
+  const side2 = _buildShimmerEye3D(eyeSpec);
+
+  side1.position.set(eyeSpec.x, eyeY, 0.05);
+  side2.position.set(eyeSpec.x, eyeY, -0.05);
+  side2.rotation.y = Math.PI;
+
+  wrapper.add(side1, side2);
+  wrapper.userData.shimmerEyes = [side1, side2];
   return wrapper;
+}
+
+function _buildShimmerEye3D(eyeSpec) {
+  const g = new THREE.Group();
+  // Body-relative scaling — caller passes eyeSpec.r which is already relative
+  // to body profile; we respect it within a sane window (no hard clamp that
+  // makes big fish look pinprick-eyed).
+  const rRaw = eyeSpec.r || 0.025;
+  const r = Math.max(0.018, Math.min(rRaw, 0.055));
+
+  // 1. Concave socket: a small dark ring around the eye so it reads as inset,
+  //    not pasted on top.
+  const socket = new THREE.Mesh(
+    new THREE.RingGeometry(r * 1.1, r * 1.45, 40),
+    new THREE.MeshStandardMaterial({ color: 0x1a1410, roughness: 0.9, metalness: 0.0, side: THREE.DoubleSide })
+  );
+  socket.position.z = -0.001;
+  g.add(socket);
+
+  // 2. Sclera — cool-tinted off-white (was too warm/yellow before which read as red)
+  const sclera = new THREE.Mesh(
+    new THREE.CircleGeometry(r * 1.08, 32),
+    new THREE.MeshStandardMaterial({ color: 0xeef2f5, roughness: 0.55, metalness: 0.0, side: THREE.DoubleSide })
+  );
+  sclera.position.z = 0.0;
+  g.add(sclera);
+
+  // 3. Iris disc — species-agnostic dark teal/grey (NOT red). Real fish eyes are
+  //    usually silvery with a dark iris; we cool this down significantly.
+  const iris = new THREE.Mesh(
+    new THREE.RingGeometry(r * 0.42, r * 0.95, 48),
+    new THREE.MeshStandardMaterial({
+      color: 0x3a4a5a, emissive: 0x10202a, emissiveIntensity: 0.25,
+      roughness: 0.45, metalness: 0.4, side: THREE.DoubleSide,
+    })
+  );
+  iris.position.z = 0.0012;
+  g.add(iris);
+
+  // 4. Hemisphere pupil — RECESSED farther so parallax is visible at oblique
+  //    angles. Smaller radius so iris reads around it.
+  const pupil = new THREE.Mesh(
+    new THREE.SphereGeometry(r * 0.45, 24, 16, 0, Math.PI * 2, 0, Math.PI * 0.5),
+    new THREE.MeshStandardMaterial({ color: 0x010103, roughness: 0.18, metalness: 0.0 })
+  );
+  pupil.rotation.x = Math.PI / 2;
+  pupil.position.z = -r * 0.18;        // deeper recess → stronger parallax
+  g.add(pupil);
+
+  // 5. Iridescent shimmer — partial arc (lower 60% only), not a full halo
+  const shimmerGeo = new THREE.RingGeometry(
+    r * 0.48, r * 0.62, 48, 1,
+    Math.PI * 0.15, Math.PI * 1.25      // partial arc
+  );
+  const cols = new Float32Array(shimmerGeo.attributes.position.count * 3);
+  const p = shimmerGeo.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const ang = Math.atan2(p.getY(i), p.getX(i));
+    const h = (ang + Math.PI) / (Math.PI * 2);
+    const col = new THREE.Color().setHSL((h + 0.5) % 1, 0.7, 0.55);   // cooler rainbow
+    cols[i * 3] = col.r; cols[i * 3 + 1] = col.g; cols[i * 3 + 2] = col.b;
+  }
+  shimmerGeo.setAttribute('color', new THREE.BufferAttribute(cols, 3));
+  const shimmer = new THREE.Mesh(shimmerGeo, new THREE.MeshBasicMaterial({
+    vertexColors: true, transparent: true, opacity: 0.55, side: THREE.DoubleSide,
+    blending: THREE.AdditiveBlending,
+  }));
+  shimmer.position.z = 0.002;
+  g.add(shimmer);
+
+  // 6. Glossy cornea dome — refractive physical material, in FRONT of pupil so
+  //    as camera moves the pupil appears to shift (real parallax).
+  const cornea = new THREE.Mesh(
+    new THREE.SphereGeometry(r * 1.0, 24, 12, 0, Math.PI * 2, 0, Math.PI * 0.5),
+    new THREE.MeshPhysicalMaterial({
+      color: 0xffffff, roughness: 0.02, metalness: 0.0,
+      transmission: 0.9, thickness: 0.01, ior: 1.36,
+      clearcoat: 1.0, clearcoatRoughness: 0.02,
+      transparent: true, opacity: 0.28,
+    })
+  );
+  cornea.rotation.x = -Math.PI / 2;
+  cornea.position.z = r * 0.35;        // pushed out, pupil is behind → parallax
+  g.add(cornea);
+
+  // 7. Catchlight — pushed further forward so it sits on the cornea surface,
+  //    producing noticeable parallax against the recessed pupil when the camera
+  //    moves around the fish.
+  const glint = new THREE.Mesh(
+    new THREE.CircleGeometry(r * 0.15, 16),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.92 })
+  );
+  glint.position.set(-r * 0.28, r * 0.3, r * 0.55);
+  g.add(glint);
+
+  g.userData.shimmerRing = shimmer;
+  return g;
 }
 
 /**

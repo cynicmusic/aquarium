@@ -1,61 +1,80 @@
-# Aquarium Improvement Plan
-**Last updated:** 2026-03-26
+# Aquarium — Iteration Plan
 
-## Current Goals
-Match the reference images: vivid colorful fish in side profile, lush coral reef, proper lighting.
+Last updated: 2026-04-19 (round 2 — all four critics ran, all tracks iterated once on critic feedback; see `agents/sessions/2026-04-19-round2.md`)
 
-## Phase 1: Core Fixes (In Progress)
+## Reference images
+External refs in `examples/external/cuttle/`:
+- `master reference.png` — zebra dorsal stripes, iridescent cheek, W-pupil, pink/cream/orange palette.
+- `images.jpeg` — purple/teal iridophore striations on side fin + cheek.
+- `shutterstock-*.jpg` — side-profile swimmer with soft brown dorsal stripes.
+- `Screenshot … .png` — Google gallery: diversity across species (camouflage/zebra/psychedelic).
 
-### 1. Lighting System
-- **Problem:** Fish are barely visible. Ambient/hemisphere lights are too dim and dark-tinted.
-- **Fix:** Increase ambient intensity, use brighter/warmer hemisphere colors, add a key directional light from above-front, increase spotlight intensity, widen beam angles.
-- **Target:** Fish should be vivid and well-lit like reference images (bright blues, oranges, yellows visible).
+All iteration must compare against `examples/internal/_master_reference.png` (copied for side-by-side).
 
-### 2. Fish Movement & Orientation
-- **Problem:** Fish cluster together, face camera, don't pace back and forth, all swim at same depth.
-- **Fixes:**
-  - Increase tank spread (use full tankWidth for targets, not 0.3)
-  - Force side-profile orientation: fish should primarily swim left-right (along X axis)
-  - Assign individual buoyancy lanes per fish (not just per category) so they spread vertically
-  - Reduce schooling cohesion to prevent clustering
-  - Increase separation distance
-  - Make pacing more deliberate: swim to one side, then the other
+## Critical bugs
+1. **Chromatophore sim appears static** — user sees motion only when dragging sliders. Either `uTime` isn't flowing, or pulseRate is too subtle to be visible frame-to-frame. Fix: pump `uTime` each frame + add dramatic burst timing so propagation waves ripple then calm.
+2. **Mantle UV stretched** — chromatophore pattern stretches along the tapering body. Fix: recompute UVs so `u` wraps the circumference at constant density, and `v` uses arc-length rather than linear `i/N`.
+3. **Cuttlefish 4×4 variants look identical** — parameter ranges too timid. Pick axes with real visual payoff.
+4. **W-pupil not visible** — it's drawn as a flat shape on the eye front but hidden behind the cornea dome.
+5. **Tentacles are dark static rods** — need animation + colour parity with mantle.
+6. **Fish eyes flat, creepy, cut-off** — need real parallax/depth + less red iris + check clipping against body.
+7. **Iridophore not applied to all fish** — should be the default fish skin behaviour, tuned per-species.
 
-### 3. Fish Text Labels
-- **Problem:** Font too bold, pill too opaque/large
-- **Fix:** Use lighter font weight (300/normal instead of bold), reduce pill opacity to 0.3, measure text width and size pill to fit + padding
+## Tracks (independent, iterate each with its own critic)
 
-### 4. Camera
-- **Problem:** Default angle focuses on ground, too zoomed in
-- **Fix:** Move camera back (z=28), raise lookAt point to (0, 5, 0), slightly higher camera position
+### Track L — **Leukophore / reflective base layer**
+Sub-layer under everything else. Soft pale, slightly shimmering, with subtle Perlin mottle.
+- [ ] Implement `leukophoreLayer(uv, t, params)` in `ChromatophoreMaterial.js`.
+- [ ] Shimmer: multi-freq sine modulation makes highlights drift across.
+- [ ] Critic_L: animation + texture fidelity vs reference. ≥ 7/10.
 
-### 5. Plants
-- **Problem:** No lime green tall plants, ferns not fractal enough
-- **Fix:** Add lime green plant presets (tall vallisneria-like), implement proper fractal fern algorithm (L-system or IFS-based Barnsley fern)
+### Track I — **Iridophore structural-color layer**
+The rainbow shimmer we see on the reference's cheek and fin.
+- [ ] `iridophoreLayer(uv, normal, view, t, params)` — thin-film interference tied to fresnel + UV pattern.
+- [ ] Undulating waves — two overlapping low-freq noise fields rotate.
+- [ ] Separate mask so it shows strongly on cheek/fin, faintly on dorsal.
+- [ ] Critic_I: does shimmer animate continuously? Does it look structural (view-dependent) not like a painted rainbow? ≥ 7/10.
 
-### 6. Coral
-- **Problem:** Not enough variety, not fractal-like
-- **Fix:** More coral spawns (20+), implement fractal branching for staghorn, add more color diversity matching references (pinks, oranges, purples, yellows)
+### Track C — **Chromatophore pigment-sac layer**
+Two grids (warm + cool) of voronoi sacs that expand and contract on propagation waves.
+- [ ] Propagation burst timing — waves sometimes fast (100ms bursts), sometimes calm (5s rests), like real cephalopods.
+- [ ] Fix UV stretch so sacs aren't oval.
+- [ ] Critic_C: does animation have realistic burst cadence? ≥ 7/10.
 
-### 7. UI: Fullscreen + Collapsible Panels
-- **Problem:** Debug panels always visible, not fullscreen
-- **Fix:** Hide #ui-root and #debug-overlay by default, add disclosure triangle buttons to bring them back
+### Track Z — **Zebra stripe band layer**
+Separate modulator. Running front-to-back on the dorsal mantle, as in the master reference.
+- [ ] Sharp high-contrast horizontal bands on the top half only.
+- [ ] Stripe positions wobble slightly (domain-warped noise).
+- [ ] Modulate chromatophore density — stripes = dense warm sacs; between = iridophores show through.
+- [ ] Critic_Z: stripe count + contrast + mask fade vs reference. ≥ 7/10.
 
-### 8. Preset Bar
-- **Problem:** No way to switch between light/dark/themed modes
-- **Fix:** Add a thin preset bar at the top with buttons: "Reef Day", "Deep Night", "Warm Sunset", "Cool Abyss"
-- Each preset adjusts: background gradient, lighting hues/intensity, fog color/density
+### Track SK — **Skin texture sheets**
+Generate 4×4 *texture-only* tiles (no geometry) so the shader can be iterated against master reference without distracting 3D.
+- [ ] `skin-sheet.html` — 16 tiles with varying (zebra strength × iridophore freq) etc.
+- [ ] Put master reference as the 17th tile for comparison.
+- [ ] Critic_SK: pick top 3 tiles that best match reference.
 
-## Phase 2: Polish & Iteration
-- Take Playwright screenshots after each change
-- Compare against reference images
-- Tune colors, fish patterns, coral shapes
-- Add more presets and refine each one
+### Track CT — **Cuttlefish anatomy**
+- [ ] Make W-pupil visible from outside — extrude it forward so it reads from any angle, or paint it as an opaque decal on the cornea.
+- [ ] Tentacles: animate with travelling wave along the spine (drive vertex positions), colour them to match the mantle.
+- [ ] Arms: tighten bundle in front of mouth, spread slightly based on activity.
+- [ ] Widen 4×4 sweep to `mantleLength × armSpread` or `tentacleExtension × chromatophore-burstRate`.
 
-## Reference Image Analysis
-- **reference.png:** Bright blue water, vivid orange/yellow/striped fish, pink/orange coral, bright green plants
-- **ref1.png:** Bright blue bg, diverse fish species, colorful coral clusters at bottom
-- **nice colors.png:** Dark background, vivid neon-colored fish, orange coral clusters
-- **foliage and bubbles.png:** Lush GREEN plants dominating, fish in side profile swimming left-right
-- **color and variety.png:** Bright blue water, large clownfish, diverse coral
-- **coral colors.png:** Rich coral colors - oranges, purples, greens
+### Track FE — **Fish eye**
+- [ ] Real depth: small hemisphere pupil at the bottom of the cornea well with parallax (offset based on view direction); iris on the rim of the socket.
+- [ ] Less red: iris colour driven by species primary, not a hard-coded gold.
+- [ ] No clipping: clamp eye radius to 1.2× the body-profile thickness at the eye X.
+- [ ] Per-body-size scaling.
+
+### Track FI — **Fish iridophore**
+- [ ] Default iridophore intensity ON for every fish. Per-species multiplier baked into species JSON (shy species ~0.1, show-off species ~0.4).
+- [ ] Animate through `uTime` so every fish shimmers as it swims.
+
+## Per-layer critic rules
+- Each critic reads the relevant sheet PNG(s), the master reference PNG, and an animation GIF (3-4 frames captured at 0.5s intervals).
+- Must assess **texture (static)** AND **animation (over time)** separately.
+- Score 1–10; comments must reference specific file paths and params.
+- Save review to `agents/progress/reviews/<track>_<iteration>.md`.
+
+## Iteration protocol
+1. Build tool first. 2. Emit sheet + 4-frame GIF. 3. Pop both. 4. Run track critic. 5. If < 7, tweak params and loop. 6. Port winner back to main tank and compare.
