@@ -13,7 +13,9 @@ import { createFishMaterial } from '../shaders/FishShaderMaterial.js';
 let _species = null;
 let _loading = null;
 
-export async function loadSpecies(basePath = '/fish/') {
+// Relative path so the preview works both at site root (dev) and from a
+// subdirectory (staging.relaxmoods.com/cuttlefish/).
+export async function loadSpecies(basePath = './fish/') {
   if (_species) return _species;
   if (_loading) return _loading;
   _loading = (async () => {

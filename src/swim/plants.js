@@ -24,7 +24,6 @@ varying vec3 vWorldPos;
 
 void main() {
   vUv = uv;
-  vNormal = normalMatrix * normal;
 
   vec3 pos = position;
   float h = uv.y;
@@ -33,7 +32,18 @@ void main() {
   pos.x += sway1;
   pos.z += sway2;
 
-  vec4 worldPos = modelMatrix * vec4(pos, 1.0);
+  // InstancedMesh path: three.js auto-injects an instanceMatrix attribute
+  // when USE_INSTANCING is set; we have to reference it ourselves in custom
+  // shaders. Rotate the normal by the instance matrix upper-left 3x3 too,
+  // else lighting reads as if every blade faced the same way.
+  #ifdef USE_INSTANCING
+    vec4 worldPos = modelMatrix * instanceMatrix * vec4(pos, 1.0);
+    mat3 instNormal = mat3(instanceMatrix);
+    vNormal = normalMatrix * (instNormal * normal);
+  #else
+    vec4 worldPos = modelMatrix * vec4(pos, 1.0);
+    vNormal = normalMatrix * normal;
+  #endif
   vWorldPos = worldPos.xyz;
   gl_Position = projectionMatrix * viewMatrix * worldPos;
 }
@@ -446,4 +456,140 @@ export function disposePlants() {
   for (const m of _matCache.values()) m.dispose();
   _geoCache.clear();
   _matCache.clear();
+}
+
+// ── Instanced bucket API ───────────────────────────────────────────────────
+// Collapses N plants of the same preset into a single InstancedMesh draw call.
+// Geometry is shared via _geoCache (already done) — the win here is collapsing
+// N per-plant Mesh objects into 1 draw call. fractalFern + branch shapes have
+// per-instance random geometry so they stay non-instanceable; the caller must
+// fall back to createPlant() for those.
+
+export function isPlantInstanceable(typeName) {
+  const preset = PLANT_PRESETS[typeName];
+  return !!preset && preset.shape !== 'fractalFern' && preset.shape !== 'branch';
+}
+
+/**
+ * Build one InstancedMesh holding every blade of every plant of `typeName`
+ * at the given positions. Each plant contributes `preset.bladeCount` instances
+ * (matching the old per-plant Group of N blades).
+ *
+ * Returns a bucket interface:
+ *   .mesh                            — THREE.InstancedMesh (add to scene)
+ *   .plantCount, .bladeCount         — ints
+ *   .setPlantPosition(plantIdx, pos) — moves the plant's whole blade fan;
+ *                                       also re-randomizes its outer rotation
+ *                                       (matches the old recycler behaviour).
+ *                                       Caller batches multiple updates and
+ *                                       calls .commit() once per frame.
+ *   .commit()                        — flags instanceMatrix dirty
+ *   .dispose()                       — drops cached state for the bucket
+ *                                       (geometry/material survive in caches)
+ *
+ * Returns null if the preset isn't instanceable.
+ */
+export function createPlantBucket(typeName, positions, fog) {
+  if (!isPlantInstanceable(typeName)) return null;
+  if (!positions.length) return null;
+  const preset = PLANT_PRESETS[typeName] || PLANT_PRESETS.seaGrass;
+
+  let geo = _geoCache.get(typeName);
+  if (!geo) {
+    geo = _createGeometry(preset);
+    _geoCache.set(typeName, geo);
+  }
+  const mat = _getOrCreateMaterial(typeName, preset, fog);
+
+  const bladeCount = preset.bladeCount;
+  const plantCount = positions.length;
+  const totalInstances = plantCount * bladeCount;
+
+  const instMesh = new THREE.InstancedMesh(geo, mat, totalInstances);
+  // Recycler moves instances around — frustum-cull bbox is invalidated by
+  // matrix updates. Disable per-instance culling; the InstancedMesh is one
+  // draw call regardless.
+  instMesh.frustumCulled = false;
+
+  // Per-plant outer transform (captures the scatter loop's per-plant scale +
+  // rotation.y randomization). Position is what the recycler updates.
+  const plantOuter = new Array(plantCount);
+  // Per-plant per-blade local transforms (captures the createPlant() blade
+  // randomization so each plant has its own internal arrangement). Generated
+  // once at build, preserved across recycles so the same logical plant keeps
+  // its identity.
+  const bladeLocals = new Array(plantCount);
+  for (let p = 0; p < plantCount; p++) {
+    plantOuter[p] = {
+      pos:   positions[p].clone(),
+      scale: 0.8 + Math.random() * 0.7,
+      rotY:  Math.random() * Math.PI * 2,
+    };
+    const blades = new Array(bladeCount);
+    for (let i = 0; i < bladeCount; i++) {
+      const angle = (i / bladeCount) * Math.PI * 2 + Math.random() * 0.5;
+      const radius = bladeCount > 1 ? 0.1 + Math.random() * 0.15 : 0;
+      blades[i] = {
+        offsetX: Math.cos(angle) * radius,
+        offsetZ: Math.sin(angle) * radius,
+        rotY:    angle + Math.random() * 0.3,
+        scale:   0.8 + Math.random() * 0.4,
+      };
+    }
+    bladeLocals[p] = blades;
+  }
+
+  const _matPlant = new THREE.Matrix4();
+  const _matBlade = new THREE.Matrix4();
+  const _matFinal = new THREE.Matrix4();
+  const _vecPos   = new THREE.Vector3();
+  const _vecScale = new THREE.Vector3();
+  const _quat     = new THREE.Quaternion();
+  const _eulerY   = new THREE.Euler();
+
+  function rebuildPlant(plantIdx) {
+    const outer = plantOuter[plantIdx];
+    _eulerY.set(0, outer.rotY, 0);
+    _quat.setFromEuler(_eulerY);
+    _vecScale.setScalar(outer.scale);
+    _matPlant.compose(outer.pos, _quat, _vecScale);
+
+    const blades = bladeLocals[plantIdx];
+    for (let i = 0; i < bladeCount; i++) {
+      const b = blades[i];
+      _vecPos.set(b.offsetX, 0, b.offsetZ);
+      _eulerY.set(0, b.rotY, 0);
+      _quat.setFromEuler(_eulerY);
+      _vecScale.setScalar(b.scale);
+      _matBlade.compose(_vecPos, _quat, _vecScale);
+      _matFinal.multiplyMatrices(_matPlant, _matBlade);
+      instMesh.setMatrixAt(plantIdx * bladeCount + i, _matFinal);
+    }
+  }
+
+  for (let p = 0; p < plantCount; p++) rebuildPlant(p);
+  instMesh.instanceMatrix.needsUpdate = true;
+
+  return {
+    mesh: instMesh,
+    plantCount,
+    bladeCount,
+    setPlantPosition(plantIdx, position) {
+      const o = plantOuter[plantIdx];
+      o.pos.copy(position);
+      o.rotY = Math.random() * Math.PI * 2;     // matches recycler behaviour
+      rebuildPlant(plantIdx);
+    },
+    getPlantPosition(plantIdx) {
+      return plantOuter[plantIdx].pos;
+    },
+    commit() {
+      instMesh.instanceMatrix.needsUpdate = true;
+    },
+    dispose() {
+      // Geometry + material are cached at module scope and shared across
+      // re-spawns; the InstancedMesh wrapper is what we drop here.
+      instMesh.dispose();
+    },
+  };
 }

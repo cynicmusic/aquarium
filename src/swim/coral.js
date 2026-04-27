@@ -191,3 +191,101 @@ export function disposeCoral() {
   _geoCache.clear();
   _matCache.clear();
 }
+
+// ── Instanced bucket API ───────────────────────────────────────────────────
+// One InstancedMesh per preset = one draw call instead of N. fractalBranch
+// coral has per-instance random geometry so it stays non-instanceable.
+
+export function isCoralInstanceable(typeName) {
+  const preset = CORAL_PRESETS[typeName];
+  return !!preset && preset.type !== 'fractalBranch';
+}
+
+/**
+ * Build one InstancedMesh holding every coral of `typeName` at the given
+ * positions. Each coral gets its own scale + sway phase + base rotation, just
+ * like the old createCoral() Mesh did.
+ *
+ * Returns a bucket interface:
+ *   .mesh                            — THREE.InstancedMesh (add to scene)
+ *   .count                           — number of corals
+ *   .setCoralPosition(idx, position) — moves a coral; new random baseRotY.
+ *   .update(elapsed)                 — recomputes per-instance matrices to
+ *                                       apply sway. Uploads instanceMatrix.
+ *   .dispose()                       — drops the InstancedMesh wrapper.
+ *
+ * Returns null if the preset isn't instanceable.
+ */
+export function createCoralBucket(typeName, positions) {
+  if (!isCoralInstanceable(typeName)) return null;
+  if (!positions.length) return null;
+  const preset = CORAL_PRESETS[typeName] || CORAL_PRESETS.brainCoral;
+
+  let geo = _geoCache.get(typeName);
+  if (!geo) {
+    geo = _createGeometry(preset);
+    _geoCache.set(typeName, geo);
+  }
+  const mat = _getOrCreateMaterial(typeName, preset);
+
+  const count = positions.length;
+  const instMesh = new THREE.InstancedMesh(geo, mat, count);
+  instMesh.frustumCulled = false;
+
+  // Per-instance state — matches the userData on old createCoral() Mesh.
+  // Total scale composes the factory's 1.2..2.2 with the scatter call's
+  // 0.6..1.4 multiplier, preserving the old size distribution.
+  const state = new Array(count);
+  for (let i = 0; i < count; i++) {
+    state[i] = {
+      pos:       positions[i].clone(),
+      baseRotY:  Math.random() * Math.PI * 2,
+      swayPhase: Math.random() * Math.PI * 2,
+      swayAmp:   0.015 + Math.random() * 0.015,
+      scale:     (1.2 + Math.random() * 1.0) * (0.6 + Math.random() * 0.8),
+    };
+  }
+
+  const _mat   = new THREE.Matrix4();
+  const _vec   = new THREE.Vector3();
+  const _scale = new THREE.Vector3();
+  const _euler = new THREE.Euler();
+  const _quat  = new THREE.Quaternion();
+
+  function rebuildAt(i, elapsed) {
+    const s = state[i];
+    let rotY = s.baseRotY;
+    let rotZ = 0;
+    if (elapsed !== undefined) {
+      rotY += Math.sin(elapsed * 0.6 + s.swayPhase) * s.swayAmp;
+      rotZ  = Math.sin(elapsed * 0.5 + s.swayPhase * 1.3) * s.swayAmp * 0.7;
+    }
+    _euler.set(0, rotY, rotZ);
+    _quat.setFromEuler(_euler);
+    _scale.setScalar(s.scale);
+    _mat.compose(s.pos, _quat, _scale);
+    instMesh.setMatrixAt(i, _mat);
+  }
+
+  for (let i = 0; i < count; i++) rebuildAt(i);
+  instMesh.instanceMatrix.needsUpdate = true;
+
+  return {
+    mesh: instMesh,
+    count,
+    setCoralPosition(idx, position) {
+      state[idx].pos.copy(position);
+      state[idx].baseRotY = Math.random() * Math.PI * 2;
+    },
+    getCoralPosition(idx) {
+      return state[idx].pos;
+    },
+    update(elapsed) {
+      for (let i = 0; i < count; i++) rebuildAt(i, elapsed);
+      instMesh.instanceMatrix.needsUpdate = true;
+    },
+    dispose() {
+      instMesh.dispose();
+    },
+  };
+}

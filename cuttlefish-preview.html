@@ -12,6 +12,10 @@
   #panel { width:310px; background:#101219; border-left:1px solid #222; padding:10px; overflow-y:auto; }
   #panel .kill { width:100%; margin:0 0 8px 0; background:#522; border:1px solid #844; color:#fdd; padding:7px; font:12px monospace; cursor:pointer; border-radius:3px; }
   #panel .kill:hover { background:#733; color:#fee; }
+  /* Hide-UI mode (default on) — ESC toggles. Kills the mode buttons + panel
+     but keeps the canvas + keyboard shortcuts fully functional. */
+  body.hide-ui #panel,
+  body.hide-ui #mode-buttons { display:none; }
   h3 { color:#7bd; font-size:11px; text-transform:uppercase; margin:10px 0 6px; letter-spacing:1px; }
   .row { display:flex; align-items:center; margin-bottom:4px; }
   .row label { width:118px; color:#889; font-size:11px; }
@@ -20,6 +24,13 @@
   a.back { color:#559; display:block; margin-bottom:8px; text-decoration:none; }
   a.back:hover { color:#77b; }
   #info { position:absolute; bottom:8px; left:10px; color:#aab; background:rgba(0,0,0,0.5); padding:4px 8px; border-radius:3px; }
+  #fps { position:absolute; top:10px; left:10px; z-index:11;
+    background:rgba(0,0,0,0.55); color:#cfd; padding:5px 9px; border-radius:4px;
+    font:12px/1.1 ui-monospace, monospace; pointer-events:none;
+    text-shadow:0 0 2px #000; min-width:46px; }
+  #fps .lo  { color:#f86; }
+  #fps .mid { color:#fd6; }
+  #fps .hi  { color:#9f8; }
   button { width:100%; background:#234; color:#bcf; border:1px solid #456; padding:6px; font:12px monospace; cursor:pointer; margin:4px 0; border-radius:3px; }
   button:hover { background:#345; color:#def; }
   button.paste { background:#243; border-color:#465; color:#cfb; }
@@ -39,6 +50,7 @@
 </head>
 <body>
 <div id="view">
+  <div id="fps">— fps</div>
   <div id="mode-buttons">
     <button id="swimBtn" title="Camera follows as he swims">🏊 Swim mode</button>
     <span class="sep"></span>
@@ -134,7 +146,7 @@
 
   <h3>Zebra pattern</h3>
   <div class="row"><label>Intensity</label><input type="range" min="0" max="200" value="121" id="zebraIntensity"><span class="v">1.21</span></div>
-  <div class="row"><label>Frequency</label><input type="range" min="2" max="40" value="8" id="zebraFrequency"><span class="v">8</span></div>
+  <div class="row"><label>Frequency</label><input type="range" min="2" max="40" value="5" id="zebraFrequency"><span class="v">5</span></div>
   <div class="row"><label>Sharpness</label><input type="range" min="5" max="150" value="5" id="zebraSharpness"><span class="v">0.5</span></div>
   <div class="row"><label>Scale X</label><input type="range" min="20" max="500" value="500" id="zebraScaleX"><span class="v">5.00</span></div>
   <div class="row"><label>Scale Y</label><input type="range" min="20" max="500" value="500" id="zebraScaleY"><span class="v">5.00</span></div>

@@ -855,6 +855,8 @@ export function createCuttlefish(overrides = {}) {
         leukoTint:       p.leukoTint       ?? '#dfd4c2',
         skinTint:        p.skinTint        ?? '#ffffff',
         lightingBias:    0.55,
+        // Mantle wears the full skin shader. headMask off — that's the head's job.
+        features: { chroma: true, irido: true, zebra: true, sparkle: true, headMask: false },
       });
   const mantle = new THREE.Mesh(buildMantle(p), mantleMat);
   mantle.userData.role = 'mantle';
@@ -886,6 +888,8 @@ export function createCuttlefish(overrides = {}) {
         sparkleIntensity: p.sparkleIntensity ?? 0.8,
         leukoTint:       p.leukoTint       ?? '#dfd4c2',
         skinTint:        p.skinTint        ?? '#ffffff',
+        // Head: chroma/irido/sparkle on, zebra off, head reticulation ON.
+        features: { chroma: true, irido: true, zebra: false, sparkle: true, headMask: true },
       });
   const headMesh = new THREE.Mesh(headGeo, headMat);
   headMesh.userData.role = 'head';
@@ -901,6 +905,8 @@ export function createCuttlefish(overrides = {}) {
     iridoHueRange:   1.85,
     sparkleIntensity: 0.5,
     leukoTint: '#cfd6d4',
+    // Fins: only iridophore + sparkle. No voronoi, no zebra, no head mask.
+    features: { chroma: false, irido: true, zebra: false, sparkle: true, headMask: false },
   });
   finMat.transparent = true;
   finMat.side = THREE.DoubleSide;
@@ -988,6 +994,8 @@ export function createCuttlefish(overrides = {}) {
         chromaDensity: 70,  iridoIntensity: 0.45, iridoHueRange: 0.8,
         zebraIntensity: 0.0, chromaIntensity: 0.7,
         leukoTint: '#c5b8a0', skinTint: '#ffffff', lightingBias: 0.7,
+        // Tentacles: chroma + irido + sparkle. No zebra, no head mask.
+        features: { chroma: true, irido: true, zebra: false, sparkle: true, headMask: false },
       });
   for (let i = 0; i < 2; i++) {
     const spine = tentacleSpine(p, i);
@@ -1019,6 +1027,8 @@ export function createCuttlefish(overrides = {}) {
       chromaDensity: 55,  iridoIntensity: 0.35, iridoHueRange: 0.7,
       zebraIntensity: 0.0, chromaIntensity: 0.65,
       leukoTint: '#b8ac93', skinTint: '#ffffff', lightingBias: 0.7,
+      // Arms: chroma + irido + sparkle. No zebra, no head mask.
+      features: { chroma: true, irido: true, zebra: false, sparkle: true, headMask: false },
     });
     group.traverse(c => {
       if (c.userData && c.userData.role === 'arm') {
@@ -1116,7 +1126,6 @@ export function updateCuttlefish(group, t) {
         pos.setZ(i, rz + dispZ);
       }
       pos.needsUpdate = true;
-      geo.computeVertexNormals();
     } else if (child.userData.role === 'arm') {
       const idx = child.userData.index;
       const phase = idx * 0.7;

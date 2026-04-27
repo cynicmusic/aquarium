@@ -9,6 +9,11 @@ import * as THREE from 'three';
 import { createCuttlefish, updateCuttlefish } from '../entities/Cuttlefish.js';
 import { SwimWorld } from '../swim/SwimWorld.js';
 
+// Hide all UI chrome (mode buttons + params panel) by default. Canvas +
+// keyboard shortcuts still work; ESC toggles chrome back on.
+const HIDE_UI_DEFAULT = false;
+if (HIDE_UI_DEFAULT) document.body.classList.add('hide-ui');
+
 // sliderId → { type: 'geom'|'uniform'|'anim', scale(v)=>value, uniformName? }
 const CONTROLS = {
   // ── Geometry — trigger rebuild ───────────────────────────────────────
@@ -95,7 +100,9 @@ const CONTROLS = {
 
 const view = document.getElementById('view');
 const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+const isTouch = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+const maxPixelRatio = isTouch ? 1 : 2;
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, maxPixelRatio));
 renderer.setSize(view.clientWidth, view.clientHeight);
 renderer.setClearColor(0x060810);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -136,26 +143,91 @@ rim.position.set(-4, 2, -3); scene.add(rim);
 const fill = new THREE.PointLight(0xff88aa, 0.8, 10);
 fill.position.set(0, -1.5, 2); scene.add(fill);
 
-// ── Seafloor with caustic shimmer ─────────────────────────────────────
-// Large plane with a procedural caustic pattern animated in the shader so the
-// ground reads like the main aquarium floor. Pushed well below the cuttlefish
-// so drooping tentacles don't clip.
+// ── Seafloor ───────────────────────────────────────────────────────────
+// SPECULATIVE: sculpted terrain — vertex displacement (fBM dunes + ripples)
+// adapted from environment/Sand.js, layered under the existing caustic
+// shimmer. Gentle amplitude by default (~0.18 dune, 0.025 ripple). Flip the
+// flag to false to fall back to the flat plane if it feels wrong.
+const FEATURE_SCULPTED_FLOOR = true;
 const floorMat = new THREE.ShaderMaterial({
   uniforms: {
-    uTime:  { value: 0 },
-    uSand:  { value: new THREE.Color(0.28, 0.24, 0.18) },
-    uDeep:  { value: new THREE.Color(0.10, 0.04, 0.18) },  // dark purple to match swim-mode fog
-    uCaust: { value: new THREE.Color(0.90, 0.95, 1.20) },
-    uCamPos:{ value: new THREE.Vector3() },
+    uTime:         { value: 0 },
+    uSand:         { value: new THREE.Color(0.28, 0.24, 0.18) },
+    uDeep:         { value: new THREE.Color(0.10, 0.04, 0.18) },   // purple fog
+    uCaust:        { value: new THREE.Color(0.90, 0.95, 1.20) },
+    uCamPos:       { value: new THREE.Vector3() },
+    uSculptAmount: { value: FEATURE_SCULPTED_FLOOR ? 1.0 : 0.0 },
   },
   vertexShader: /* glsl */`
+    uniform float uSculptAmount;
     varying vec3 vWorldPos;
     varying vec2 vUv;
+    varying vec3 vNormal;
+    varying float vHeight;
+
+    // Simplex noise (from Sand.js)
+    vec3 mod289_3(vec3 x) { return x - floor(x * (1.0/289.0)) * 289.0; }
+    vec2 mod289_2(vec2 x) { return x - floor(x * (1.0/289.0)) * 289.0; }
+    vec3 permute(vec3 x) { return mod289_3(((x*34.0)+1.0)*x); }
+    float snoise(vec2 v) {
+      const vec4 C = vec4(0.211324865405187, 0.366025403784439, -0.577350269189626, 0.024390243902439);
+      vec2 i  = floor(v + dot(v, C.yy));
+      vec2 x0 = v - i + dot(i, C.xx);
+      vec2 i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+      vec4 x12 = x0.xyxy + C.xxzz; x12.xy -= i1;
+      i = mod289_2(i);
+      vec3 p = permute(permute(i.y + vec3(0.0, i1.y, 1.0)) + i.x + vec3(0.0, i1.x, 1.0));
+      vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy), dot(x12.zw,x12.zw)), 0.0);
+      m = m*m; m = m*m;
+      vec3 x = 2.0 * fract(p * C.www) - 1.0;
+      vec3 h = abs(x) - 0.5;
+      vec3 ox = floor(x + 0.5);
+      vec3 a0 = x - ox;
+      m *= 1.79284291400159 - 0.85373472095314 * (a0*a0 + h*h);
+      vec3 g;
+      g.x  = a0.x * x0.x + h.x * x0.y;
+      g.yz = a0.yz * x12.xz + h.yz * x12.yw;
+      return 130.0 * dot(m, g);
+    }
+    float fbm(vec2 p) {
+      float f = 0.0;
+      f += 0.5000 * snoise(p); p *= 2.01;
+      f += 0.2500 * snoise(p); p *= 2.02;
+      f += 0.1250 * snoise(p); p *= 2.03;
+      f += 0.0625 * snoise(p);
+      return f;
+    }
+    float terrainHeight(vec2 wp) {
+      // Gentle integration — aquarium's Sand.js uses 0.8 dune + 0.08 ripple;
+      // we cut that ~4× so the shimmer + caustics still dominate the read.
+      float dune   = fbm(wp * 0.08) * 0.18;
+      float ripple = snoise(wp * 0.7) * 0.025;
+      return (dune + ripple) * uSculptAmount;
+    }
+
     void main() {
       vUv = uv;
-      vec4 wp = modelMatrix * vec4(position, 1.0);
-      vWorldPos = wp.xyz;
-      gl_Position = projectionMatrix * viewMatrix * wp;
+      // World-space XZ of the pre-displacement vertex. modelMatrix handles the
+      // floor-follow-cuttle translation so dunes stay world-fixed (the plane
+      // slides beneath them, not with them).
+      vec4 wp4 = modelMatrix * vec4(position, 1.0);
+      vec2 wp  = wp4.xz;
+
+      float h = terrainHeight(wp);
+      vec3 pos = position + vec3(0.0, h, 0.0);
+      vHeight = h;
+
+      // Finite-difference normal in world space
+      float eps = 0.25;
+      float hL = terrainHeight(wp + vec2(-eps, 0.0));
+      float hR = terrainHeight(wp + vec2( eps, 0.0));
+      float hD = terrainHeight(wp + vec2(0.0, -eps));
+      float hU = terrainHeight(wp + vec2(0.0,  eps));
+      vNormal = normalize(vec3(hL - hR, 2.0 * eps, hD - hU));
+
+      vec4 worldPos = modelMatrix * vec4(pos, 1.0);
+      vWorldPos = worldPos.xyz;
+      gl_Position = projectionMatrix * viewMatrix * worldPos;
     }
   `,
   fragmentShader: /* glsl */`
@@ -166,8 +238,9 @@ const floorMat = new THREE.ShaderMaterial({
     uniform vec3 uCamPos;
     varying vec3 vWorldPos;
     varying vec2 vUv;
+    varying vec3 vNormal;
+    varying float vHeight;
 
-    // Hash / noise helpers
     float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
     float vn(vec2 p) {
       vec2 i = floor(p), f = fract(p);
@@ -176,14 +249,12 @@ const floorMat = new THREE.ShaderMaterial({
       vec2 u = f * f * (3.0 - 2.0 * f);
       return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
     }
-    float fbm(vec2 p) {
+    float fbm2(vec2 p) {
       float v = 0.0, amp = 0.5;
       for (int i = 0; i < 5; i++) { v += amp * vn(p); p *= 2.02; amp *= 0.5; }
       return v;
     }
 
-    // Voronoi-esque caustic lines — product of two shifting sine fields,
-    // sharpened with a power curve so the bright spots pop.
     float caustic(vec2 p, float t) {
       float c1 = 0.0, c2 = 0.0;
       for (int i = 0; i < 3; i++) {
@@ -198,17 +269,25 @@ const floorMat = new THREE.ShaderMaterial({
 
     void main() {
       vec2 wp = vWorldPos.xz;
-      float grain = fbm(wp * 1.4) * 0.20;
+      float grain = fbm2(wp * 1.4) * 0.20;
       vec3 sand = mix(uDeep, uSand, 0.55 + grain);
 
+      // Height-based subtle tonal lift on crests, dip in troughs
+      sand *= 0.90 + 0.22 * smoothstep(-0.12, 0.18, vHeight);
+
+      // Soft diffuse from the displaced normal (subtle — just enough to hint
+      // at terrain shape without shouting over the caustic pass)
+      vec3 L = normalize(vec3(0.2, 1.0, 0.3));
+      float diff = max(dot(vNormal, L), 0.0) * 0.35 + 0.75;
+      sand *= diff;
+
       // Caustic light dance — two scales for richness
-      float c = caustic(wp * 0.85, uTime);
+      float c  = caustic(wp * 0.85, uTime);
       float c2 = caustic(wp * 1.7 + 7.3, uTime * 1.3) * 0.55;
       float caus = clamp(c + c2, 0.0, 3.0);
-
       vec3 col = sand + uCaust * caus * 0.35;
 
-      // Distance fade — plane tapers into the black background
+      // Distance fade into the purple fog bank
       float dist = length(vWorldPos - uCamPos);
       float fog = smoothstep(12.0, 45.0, dist);
       col = mix(col, uDeep, fog);
@@ -217,12 +296,14 @@ const floorMat = new THREE.ShaderMaterial({
     }
   `,
 });
-const floor = new THREE.Mesh(
-  new THREE.PlaneGeometry(80, 80, 1, 1),
-  floorMat
-);
-floor.rotation.x = -Math.PI / 2;
-floor.position.y = -2.3;    // lower so droopy tentacles don't clip
+// 160×160 gives enough resolution for the gentle displacement without melting
+// perf. Rotation is baked into the geometry so vertex shader can displace in
+// local y directly (= world y post-rotation).
+const _floorSegs = FEATURE_SCULPTED_FLOOR ? 160 : 1;
+const _floorGeo = new THREE.PlaneGeometry(80, 80, _floorSegs, _floorSegs);
+_floorGeo.rotateX(-Math.PI / 2);
+const floor = new THREE.Mesh(_floorGeo, floorMat);
+floor.position.y = -2.3;
 scene.add(floor);
 
 // init params from slider defaults
@@ -251,6 +332,10 @@ window.addEventListener('keydown', (e) => {
   if (tag === 'INPUT' && e.target.type === 'text') return;
   if (tag === 'TEXTAREA') return;
 
+  if (e.key === 'Escape') {
+    document.body.classList.toggle('hide-ui');
+    return;
+  }
   if (e.key.toLowerCase() === 'd') {
     cuttle.traverse(o => {
       if (o.material && o.material.uniforms && o.material.uniforms.uDebugZebra) {
@@ -487,10 +572,10 @@ const CAM_VARIANTS = {
     rWob: 0.4, azimWob: 14, elevWob: 4,
     lookAhead: 0.5, lookY: 0.18,
   },
-  8: { // right-side tail shot — slightly pulled back but tighter on tail
-    r: 4.9, azim: 78, elev: 15,
-    rWob: 0.30, azimWob: 7, elevWob: 5,
-    lookAhead: -1.1, lookY: 0.10,
+  8: { // dramatic bottom-up — camera below cuttle looking up at belly/arms
+    r: 3.8, azim: 48, elev: -22,
+    rWob: 0.25, azimWob: 10, elevWob: 4,
+    lookAhead: 0.0, lookY: 0.55,
   },
 };
 const CAM_COUNT = 8;
@@ -692,11 +777,35 @@ window.addEventListener('mousemove', e => {
 
 const clock = new THREE.Clock();
 let autoYaw = 0.3;
+
+// ── FPS counter ──
+// Rolling average over ~30 frames so the readout doesn't jitter. Pushed to
+// the #fps element if it exists (cuttlefish-preview.html provides it).
+const fpsEl = document.getElementById('fps');
+const _fpsBuf = [];
+const _FPS_BUF_LEN = 30;
+let _fpsLastUpdate = 0;
+function updateFps(dt) {
+  if (!fpsEl || dt <= 0) return;
+  _fpsBuf.push(dt);
+  if (_fpsBuf.length > _FPS_BUF_LEN) _fpsBuf.shift();
+  const now = performance.now();
+  if (now - _fpsLastUpdate < 250) return;     // refresh DOM 4x/sec, not every frame
+  _fpsLastUpdate = now;
+  let sum = 0;
+  for (const x of _fpsBuf) sum += x;
+  const avgDt = sum / _fpsBuf.length;
+  const fps = 1 / avgDt;
+  const cls = fps < 20 ? 'lo' : fps < 45 ? 'mid' : 'hi';
+  fpsEl.innerHTML = `<span class="${cls}">${fps.toFixed(0)}</span> fps`;
+}
+
 function loop() {
   requestAnimationFrame(loop);
   const dt = clock.getDelta();
   const elapsed = clock.getElapsedTime();
   const t = elapsed * params.animSpeed;
+  updateFps(dt);
 
   // Drive shader + geometry animation
   updateCuttlefish(cuttle, t);

@@ -30,8 +30,14 @@
  */
 
 import * as THREE from 'three';
-import { createPlant, updatePlants, disposePlants, PLANT_PRESETS } from './plants.js';
-import { createCoral, updateCoral, disposeCoral, CORAL_PRESETS } from './coral.js';
+import {
+  createPlant, updatePlants, disposePlants, PLANT_PRESETS,
+  createPlantBucket, isPlantInstanceable,
+} from './plants.js';
+import {
+  createCoral, disposeCoral, CORAL_PRESETS,
+  createCoralBucket, isCoralInstanceable,
+} from './coral.js';
 import { loadSpecies, availableSpecies, createFish } from './fish.js';
 
 const TWO_PI = Math.PI * 2;
@@ -93,8 +99,16 @@ export class SwimWorld {
     this.fishCountBg  = opts.fishCountBg ?? 10;
     this.fishCountFg  = opts.fishCountFg ?? 10;
 
-    this.plants = [];   // [{mesh}]
-    this.corals = [];   // THREE.Mesh[] (userData holds sway params)
+    // Logical "plants" — for instanced presets each entry references a bucket
+    // + plantIdx into that bucket; for non-instanceable presets (fractalFern,
+    // branch) each entry holds a Group like before. Keeps recycler logic
+    // uniform: mark which kind of slot each entry is.
+    //   instanced: { kind: 'inst', bucket, idx }
+    //   group:     { kind: 'grp',  group: THREE.Group }
+    this.plants = [];
+    this.corals = [];           // same shape: { kind, bucket?, idx? } or { kind, mesh? }
+    this.plantBuckets = [];     // [InstancedMesh-bucket] — one per instanced preset
+    this.coralBuckets = [];     // [InstancedMesh-bucket] — one per instanced preset
     this.fishes = [];   // [{mesh, tick, pathX0, pathZ0, pathYBase, ampX, ampZ, ampY, freqX, freqZ, freqY, relSpeed}]
     this.lights = [];   // [THREE.Light]
 
@@ -130,29 +144,69 @@ export class SwimWorld {
     const plantTypes = Object.keys(PLANT_PRESETS);
     const coralTypes = Object.keys(CORAL_PRESETS);
 
+    // ── Plants ── bucket positions by preset, then either build one
+    // InstancedMesh for the bucket (cacheable shapes) or fall back to the old
+    // per-Group path (fractalFern + branch are per-instance random).
     const plantPositions = scatterRadial(this.plantCount, {
       rMin: 2, rMax: 45, rPow: 1.9, forwardBias: 6, y: this.floorY,
     });
+    const plantByType = new Map();   // typeName → THREE.Vector3[]
     for (const pos of plantPositions) {
       const type = plantTypes[Math.floor(Math.random() * plantTypes.length)];
-      const group = createPlant(type, pos, this._fog);
-      // Slight randomization so they don't look cloned
-      group.scale.setScalar(0.8 + Math.random() * 0.7);
-      group.rotation.y = Math.random() * TWO_PI;
-      this.scene.add(group);
-      this.plants.push(group);
+      if (!plantByType.has(type)) plantByType.set(type, []);
+      plantByType.get(type).push(pos);
+    }
+    for (const [type, positions] of plantByType) {
+      if (isPlantInstanceable(type)) {
+        const bucket = createPlantBucket(type, positions, this._fog);
+        if (bucket) {
+          this.scene.add(bucket.mesh);
+          this.plantBuckets.push(bucket);
+          for (let i = 0; i < bucket.plantCount; i++) {
+            this.plants.push({ kind: 'inst', bucket, idx: i });
+          }
+          continue;
+        }
+      }
+      // Fallback: per-Group plants for fractalFern / branch.
+      for (const pos of positions) {
+        const group = createPlant(type, pos, this._fog);
+        group.scale.setScalar(0.8 + Math.random() * 0.7);
+        group.rotation.y = Math.random() * TWO_PI;
+        this.scene.add(group);
+        this.plants.push({ kind: 'grp', group });
+      }
     }
 
+    // ── Coral ── same bucketing pattern. fractalBranch coral keeps the old
+    // per-Mesh path since its geometry is per-instance random.
     const coralPositions = scatterRadial(this.coralCount, {
       rMin: 1.5, rMax: 42, rPow: 1.8, forwardBias: 5, y: this.floorY + 0.1,
     });
+    const coralByType = new Map();
     for (const pos of coralPositions) {
       const type = coralTypes[Math.floor(Math.random() * coralTypes.length)];
-      const mesh = createCoral(type, pos);
-      // Further size randomization on top of the factory's 1.2-2.2
-      mesh.scale.multiplyScalar(0.6 + Math.random() * 0.8);
-      this.scene.add(mesh);
-      this.corals.push(mesh);
+      if (!coralByType.has(type)) coralByType.set(type, []);
+      coralByType.get(type).push(pos);
+    }
+    for (const [type, positions] of coralByType) {
+      if (isCoralInstanceable(type)) {
+        const bucket = createCoralBucket(type, positions);
+        if (bucket) {
+          this.scene.add(bucket.mesh);
+          this.coralBuckets.push(bucket);
+          for (let i = 0; i < bucket.count; i++) {
+            this.corals.push({ kind: 'inst', bucket, idx: i });
+          }
+          continue;
+        }
+      }
+      for (const pos of positions) {
+        const mesh = createCoral(type, pos);
+        mesh.scale.multiplyScalar(0.6 + Math.random() * 0.8);
+        this.scene.add(mesh);
+        this.corals.push({ kind: 'grp', mesh });
+      }
     }
   }
 
@@ -252,7 +306,16 @@ export class SwimWorld {
     if (!this._active) return;
 
     updatePlants(elapsed);
-    updateCoral(this.corals, elapsed);
+    // Sway corals (instanced + non-instanced). The instanced path recomposes
+    // matrices and uploads instanceMatrix once per bucket; the group-path
+    // (fractalBranch) sets rotation on each Mesh.
+    for (const bucket of this.coralBuckets) bucket.update(elapsed);
+    for (const c of this.corals) {
+      if (c.kind !== 'grp') continue;
+      const u = c.mesh.userData;
+      c.mesh.rotation.y = u.baseRotY + Math.sin(elapsed * 0.6 + u.swayPhase) * u.swayAmp;
+      c.mesh.rotation.z = Math.sin(elapsed * 0.5 + u.swayPhase * 1.3) * u.swayAmp * 0.7;
+    }
     this._recycleFlora();
 
     // Fish: oscillate on their parallel lanes around the cuttle. Because their
@@ -295,18 +358,53 @@ export class SwimWorld {
       return x;
     };
 
-    for (const g of this.plants) {
-      if (g.position.x - cx > REAR) {
-        g.position.x = pickAheadX();
-        g.position.z = cz + (Math.random() - 0.5) * Z_SPREAD;
-        g.rotation.y = Math.random() * TWO_PI;
+    // Plants — mix of instanced + group. Track which buckets had any of their
+    // instances moved so we only flag instanceMatrix dirty once per bucket.
+    const dirtyPlantBuckets = new Set();
+    for (const p of this.plants) {
+      if (p.kind === 'inst') {
+        const cur = p.bucket.getPlantPosition(p.idx);
+        if (cur.x - cx > REAR) {
+          const newPos = new THREE.Vector3(
+            pickAheadX(),
+            this.floorY,
+            cz + (Math.random() - 0.5) * Z_SPREAD,
+          );
+          p.bucket.setPlantPosition(p.idx, newPos);
+          dirtyPlantBuckets.add(p.bucket);
+        }
+      } else {
+        const g = p.group;
+        if (g.position.x - cx > REAR) {
+          g.position.x = pickAheadX();
+          g.position.z = cz + (Math.random() - 0.5) * Z_SPREAD;
+          g.rotation.y = Math.random() * TWO_PI;
+        }
       }
     }
-    for (const m of this.corals) {
-      if (m.position.x - cx > REAR) {
-        m.position.x = pickAheadX();
-        m.position.z = cz + (Math.random() - 0.5) * Z_SPREAD;
-        m.userData.baseRotY = Math.random() * TWO_PI;
+    for (const bucket of dirtyPlantBuckets) bucket.commit();
+
+    // Coral — instanced corals get their pos updated in-place; the per-frame
+    // sway pass (in update()) re-uploads instanceMatrix anyway, so no commit
+    // call needed here. Group corals are the legacy path.
+    for (const c of this.corals) {
+      if (c.kind === 'inst') {
+        const cur = c.bucket.getCoralPosition(c.idx);
+        if (cur.x - cx > REAR) {
+          const newPos = new THREE.Vector3(
+            pickAheadX(),
+            this.floorY + 0.1,
+            cz + (Math.random() - 0.5) * Z_SPREAD,
+          );
+          c.bucket.setCoralPosition(c.idx, newPos);
+        }
+      } else {
+        const m = c.mesh;
+        if (m.position.x - cx > REAR) {
+          m.position.x = pickAheadX();
+          m.position.z = cz + (Math.random() - 0.5) * Z_SPREAD;
+          m.userData.baseRotY = Math.random() * TWO_PI;
+        }
       }
     }
   }
@@ -315,12 +413,26 @@ export class SwimWorld {
     if (!this._active) return;
     this._active = false;
 
-    for (const g of this.plants) this.scene.remove(g);
-    for (const m of this.corals) this.scene.remove(m);
+    for (const p of this.plants) {
+      if (p.kind === 'grp') this.scene.remove(p.group);
+    }
+    for (const c of this.corals) {
+      if (c.kind === 'grp') this.scene.remove(c.mesh);
+    }
+    for (const bucket of this.plantBuckets) {
+      this.scene.remove(bucket.mesh);
+      bucket.dispose();
+    }
+    for (const bucket of this.coralBuckets) {
+      this.scene.remove(bucket.mesh);
+      bucket.dispose();
+    }
     for (const f of this.fishes) this.scene.remove(f.mesh);
     for (const l of this.lights) this.scene.remove(l);
     this.plants.length = 0;
     this.corals.length = 0;
+    this.plantBuckets.length = 0;
+    this.coralBuckets.length = 0;
     this.fishes.length = 0;
     this.lights.length = 0;
 
@@ -335,6 +447,8 @@ export class SwimWorld {
     return {
       plants: this.plants.length,
       corals: this.corals.length,
+      plantBuckets: this.plantBuckets.length,
+      coralBuckets: this.coralBuckets.length,
       fishes: this.fishes.length,
       lights: this.lights.length,
       fogColor: '#' + this.fogColor.toString(16).padStart(6, '0'),

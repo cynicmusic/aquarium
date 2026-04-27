@@ -33,7 +33,9 @@ export class AquariumScene {
         return;
       }
     }
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    const isTouch = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+    const maxPixelRatio = isTouch ? 1 : 2;
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, maxPixelRatio));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.2;

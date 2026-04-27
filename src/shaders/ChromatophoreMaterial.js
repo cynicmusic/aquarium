@@ -108,6 +108,7 @@ float dorsalWave(vec2 uv, float t) {
   return w * env;
 }
 
+#ifdef HAS_CHROMA
 // ── Voronoi sacs — ported from the user-preferred workshop shader: each sac
 // has its own jiggle AND a wave-driven spring kick so the pattern ripples.
 vec3 voronoi(vec2 uv, float density, float t) {
@@ -145,6 +146,7 @@ vec3 voronoi(vec2 uv, float density, float t) {
   }
   return vec3(minD, cellId, secD - minD);
 }
+#endif
 
 // Leukophore base — soft warm beige substrate, no speckled "snow".
 // Just a pale ground with gentle low-freq brightness drift.
@@ -155,6 +157,7 @@ vec3 leukophoreLayer(vec2 uv, float t) {
   return uLeukoTint * (0.88 + 0.14 * soft);
 }
 
+#ifdef HAS_IRIDO
 vec3 iridophoreLayer(vec2 uv, vec3 normal, vec3 view, float t) {
   float ang1 = t * 0.06 + sin(t * 0.09) * 0.5;
   float ang2 = t * 0.042 - sin(t * 0.07) * 0.6;
@@ -179,7 +182,9 @@ vec3 iridophoreLayer(vec2 uv, vec3 normal, vec3 view, float t) {
   float patchM = smoothstep(0.25, 0.85, fbm(uv * 9.0 + t * 0.08, 3));
   return spectral * fres * patchM * uIridoHueRange;
 }
+#endif
 
+#ifdef HAS_CHROMA
 // Chromatophore pigment sacs.
 // Uses workshop-style expansion: global expansion wave + per-cell sac pulse →
 // sacs collectively breathe across the body rather than firing independently.
@@ -231,7 +236,9 @@ vec4 chromatophoreLayer2(vec2 uv, float t, float expansion) {
   intensity = clamp(intensity, 0.0, 1.0);
   return vec4(colour, intensity * uChromaIntensity * 0.7);
 }
+#endif
 
+#ifdef HAS_SPARKLE
 // Sparkle — tiny discrete bright points that flicker, like the shutterstock
 // reference's speckled iridescence on the mantle edge.
 float sparkleLayer(vec2 uv, float t) {
@@ -244,7 +251,9 @@ float sparkleLayer(vec2 uv, float t) {
   float flicker = smoothstep(0.92, 1.0, sin(t * 3.0 + ch * 40.0) * 0.5 + 0.5);
   return smoothstep(0.15, 0.0, d) * flicker * ch;
 }
+#endif
 
+#ifdef HAS_ZEBRA
 // ── Per-bar-index independent 1D noise ──
 // Each integer bar gets its OWN wandering centerline. Neighbours drift
 // independently, producing real fork/merge topology. Ported from
@@ -310,7 +319,9 @@ float zebraMask(vec2 uv, float t) {
   float bars = smoothstep(0.50 - edge, 0.50 + edge, raw);
   return clamp(bars * gate * uZebraIntensity, 0.0, 1.0);
 }
+#endif
 
+#ifdef HAS_HEAD_MASK
 // Head reticulation mask — finer, chunkier pattern for the head lobe (v<0.3).
 // Uses chunks-style FBM threshold + ridge noise overlay so the head reads as
 // textured/speckled rather than uniform. Different visual family from the
@@ -331,7 +342,9 @@ float headMask(vec2 uv, float t) {
   float combined = max(chunkMask * 0.85, ridge * 0.65);
   return clamp(combined * gate * uZebraIntensity * 0.9, 0.0, 1.0);
 }
+#endif
 
+#ifdef HAS_ZEBRA
 // Mottle noise — applied ONLY to the dark stripe pixels (not cream gaps) so
 // the bands have texture without disturbing the rest of the skin.
 float stripeMottle(vec2 uv) {
@@ -341,16 +354,24 @@ float stripeMottle(vec2 uv) {
   float fine = fbm(uv * vec2(90.0, 140.0), 3);
   return m * 0.7 + fine * 0.3;
 }
+#endif
 
 void main() {
   vec2 uv = vUv;
   float t = uTime;
   // GLOBAL expansion wave — all sacs breathe together with a travelling wave.
-  float expansion = expansionWave(uv, t);
-  float wave = dorsalWave(uv, t);
+  // Used by chroma layers AND head mask, so compute when either is on.
+  #if defined(HAS_CHROMA) || defined(HAS_HEAD_MASK)
+    float expansion = expansionWave(uv, t);
+  #endif
+  // dorsalWave only modulates zebra phase — gate on HAS_ZEBRA.
+  #ifdef HAS_ZEBRA
+    float wave = dorsalWave(uv, t);
+  #endif
 
   // DEBUG: if uDebugZebra > 0.5, render the zebra mask as grayscale so we can
   // see exactly what value it's returning on the 3D mantle.
+  #ifdef HAS_ZEBRA
   if (uDebugZebra > 0.5) {
     float z = zebraMask(uv, t);
     // Also overlay the UV coords to verify mapping
@@ -358,56 +379,82 @@ void main() {
     gl_FragColor = vec4(mix(uvCol * 0.3, vec3(z), 0.85), 1.0);
     return;
   }
+  #endif
 
   // Compute zebra once (used to attenuate every later layer + applied as final pass).
-  float zebra = zebraMask(uv, t) * (0.88 + 0.12 * (0.5 + 0.5 * wave));
+  #ifdef HAS_ZEBRA
+    float zebra = zebraMask(uv, t) * (0.88 + 0.12 * (0.5 + 0.5 * wave));
+  #else
+    float zebra = 0.0;
+  #endif
   // Compute head reticulation mask — covers the head region where zebra is absent
-  float headP = headMask(uv, t) * (0.85 + 0.15 * (0.5 + 0.5 * expansion));
+  #ifdef HAS_HEAD_MASK
+    float headP = headMask(uv, t) * (0.85 + 0.15 * (0.5 + 0.5 * expansion));
+  #else
+    float headP = 0.0;
+  #endif
   // Combined dark-pattern mask (for attenuating layers below)
   float darkPattern = max(zebra, headP * 0.85);
-  vec3 zebraColor = vec3(0.03, 0.02, 0.02);
 
   // 1. Leukophore base
   vec3 color = leukophoreLayer(uv, t);
 
   // 2. Iridophore — additive sheen, dampened where dark patterns are strong
-  vec3 irid = iridophoreLayer(uv, vWorldNormal, vViewDir, t);
-  float dorsalZone = smoothstep(0.35, 0.5, uv.x) * (1.0 - smoothstep(0.5, 0.65, uv.x));
-  float iridMask = (1.0 - 0.45 * dorsalZone) * (1.0 - darkPattern * 0.75);
-  color += irid * uIridoIntensity * iridMask;
+  #ifdef HAS_IRIDO
+    vec3 irid = vec3(0.0);
+    if (uIridoIntensity > 0.001) {
+      irid = iridophoreLayer(uv, vWorldNormal, vViewDir, t);
+    }
+    float dorsalZone = smoothstep(0.35, 0.5, uv.x) * (1.0 - smoothstep(0.5, 0.65, uv.x));
+    float iridMask = (1.0 - 0.45 * dorsalZone) * (1.0 - darkPattern * 0.75);
+    color += irid * uIridoIntensity * iridMask;
+  #endif
 
-  // 3. Warm chromatophores — now with visible propagation pulse. The
-  //    expansion-wave value is used to boost alpha in wave-front regions so
-  //    the pattern visibly breathes across the body.
-  vec4 warm = chromatophoreLayer(uv, t, expansion);
-  float waveBoost = 0.7 + 0.6 * expansion;     // 0.7 → 1.3 range
-  color = mix(color, warm.rgb, warm.a * 0.90 * waveBoost * (1.0 - darkPattern * 0.70));
+  // 3+4. Chromatophores — warm + cool, both driven by the expansion wave so
+  //      the pattern visibly breathes across the body.
+  #ifdef HAS_CHROMA
+    if (uChromaIntensity > 0.001) {
+      vec4 warm = chromatophoreLayer(uv, t, expansion);
+      float waveBoost = 0.7 + 0.6 * expansion;     // 0.7 → 1.3 range
+      color = mix(color, warm.rgb, warm.a * 0.90 * waveBoost * (1.0 - darkPattern * 0.70));
 
-  // 4. Cool chromatophores
-  vec4 cool = chromatophoreLayer2(uv, t, expansion);
-  vec3 coolLayer = cool.rgb * cool.a * waveBoost * (1.0 - darkPattern * 0.65);
-  color = 1.0 - (1.0 - color) * (1.0 - coolLayer);
+      vec4 cool = chromatophoreLayer2(uv, t, expansion);
+      vec3 coolLayer = cool.rgb * cool.a * waveBoost * (1.0 - darkPattern * 0.65);
+      color = 1.0 - (1.0 - color) * (1.0 - coolLayer);
+    }
+  #endif
 
-  // 5. FINAL pattern — HARD BLACK bars (user wants the hard black back).
+  // 5. FINAL zebra pattern — HARD BLACK bars (user wants the hard black back).
   //    Mottle slightly so bands aren't flat paint.
-  float mottle = stripeMottle(uv);
-  vec3 stripeDark  = vec3(0.02, 0.015, 0.01);
-  vec3 stripeMid   = vec3(0.10, 0.07, 0.04);
-  vec3 stripeMottled = mix(stripeDark, stripeMid, smoothstep(0.35, 0.70, mottle));
-  color = mix(color, stripeMottled, clamp(zebra * 0.97, 0.0, 0.96));
+  #ifdef HAS_ZEBRA
+    float mottle = stripeMottle(uv);
+    vec3 stripeDark  = vec3(0.02, 0.015, 0.01);
+    vec3 stripeMid   = vec3(0.10, 0.07, 0.04);
+    vec3 stripeMottled = mix(stripeDark, stripeMid, smoothstep(0.35, 0.70, mottle));
+    color = mix(color, stripeMottled, clamp(zebra * 0.97, 0.0, 0.96));
+  #endif
   // Head reticulation — AMBER/copper hue, clearly distinct from sepia zebra.
   // Critic: needs amber hue + 2-3x amplitude — different colour family.
-  vec3 headAmber = vec3(0.55, 0.32, 0.12);    // warm amber ridge
-  vec3 headAmberDark = vec3(0.22, 0.11, 0.04);
-  float headFine = fbm(uv * vec2(45.0, 60.0), 4);
-  vec3 headCol = mix(headAmberDark, headAmber, smoothstep(0.35, 0.70, headFine));
-  color = mix(color, headCol, clamp(headP * 1.0, 0.0, 0.95));
+  #ifdef HAS_HEAD_MASK
+    vec3 headAmber = vec3(0.55, 0.32, 0.12);    // warm amber ridge
+    vec3 headAmberDark = vec3(0.22, 0.11, 0.04);
+    float headFine = fbm(uv * vec2(45.0, 60.0), 4);
+    vec3 headCol = mix(headAmberDark, headAmber, smoothstep(0.35, 0.70, headFine));
+    color = mix(color, headCol, clamp(headP * 1.0, 0.0, 0.95));
+  #endif
 
   // 6. Sparkle layer — tiny flickering bright points
-  float sp = sparkleLayer(uv, t) * uSparkleIntensity;
-  color += vec3(1.0, 1.0, 1.0) * sp;
-  // Iridescent-tinted sparkle adds colour
-  color += irid * sp * 1.2;
+  #ifdef HAS_SPARKLE
+    float sp = 0.0;
+    if (uSparkleIntensity > 0.001) {
+      sp = sparkleLayer(uv, t) * uSparkleIntensity;
+    }
+    color += vec3(1.0, 1.0, 1.0) * sp;
+    // Iridescent-tinted sparkle adds colour (only meaningful with iridophore on)
+    #ifdef HAS_IRIDO
+      color += irid * sp * 1.2;
+    #endif
+  #endif
 
   color *= uSkinTint;
 
@@ -424,9 +471,29 @@ void main() {
 `;
 
 export function createChromatophoreMaterial(opts = {}) {
+  // ── Compile-time feature flags ──
+  // Uniforms can't be constant-folded by the GLSL compiler, so layers we don't
+  // need are best stripped at material-create time via #defines. Auto-derive
+  // from the intensity opts (anything > 0 stays in), then let an explicit
+  // opts.features override individual flags. Mantle wants everything; fins,
+  // arms, tentacles strip the heavy bits they don't use.
+  const chroma   = opts.chromaIntensity ?? 0.85;
+  const irido    = opts.iridoIntensity  ?? 2.00;
+  const zebra    = opts.zebraIntensity  ?? 0.85;
+  const sparkle  = opts.sparkleIntensity ?? 0.8;
+  const f        = opts.features || {};
+  const defines  = {};
+  if (f.chroma   ?? chroma  > 0) defines.HAS_CHROMA = '';
+  if (f.irido    ?? irido   > 0) defines.HAS_IRIDO = '';
+  if (f.zebra    ?? zebra   > 0) defines.HAS_ZEBRA = '';
+  if (f.sparkle  ?? sparkle > 0) defines.HAS_SPARKLE = '';
+  // Head reticulation defaults OFF (only the head surface uses it).
+  if (f.headMask) defines.HAS_HEAD_MASK = '';
+
   return new THREE.ShaderMaterial({
     vertexShader: vertex,
     fragmentShader: fragment,
+    defines,
     uniforms: {
       uTime:            { value: 0.0 },
       // User-selected defaults (preview stack, v019 → multi-view):

@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Holo workshop — poke-style shimmer (throwaway)</title>
+<style>
+  :root {
+    --bg: #0c0e14;
+    --panel: #14171f;
+    --ink: #d8dbe2;
+    --muted: #8a8f9b;
+    --accent: #ffcc33;
+  }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink);
+    font: 12px/1.4 ui-monospace, monospace; overflow: hidden; }
+  #app { display: grid; grid-template-columns: 1fr 320px; height: 100vh; }
+
+  /* ── Stage ─────────────────────────────────────────────── */
+  #stage { position: relative; overflow: hidden; background: #000;
+    display: flex; align-items: center; justify-content: center; }
+  #stage .src { position: absolute; inset: 0; }
+  #stage img.src { width: 100%; height: 100%; object-fit: contain; }
+  #stage iframe.src { width: 100%; height: 100%; border: 0; background: #000; }
+
+  /* The card frame (mouse-tracked). Uses --pointer-x/y + --background-x/y. */
+  .card {
+    --pointer-x: 50%;
+    --pointer-y: 50%;
+    --background-x: 50%;
+    --background-y: 50%;
+
+    --rainbow-angle: 110deg;
+    --rainbow-saturation: 1.2;
+    --rainbow-bright: 1.1;
+    --rainbow-contrast: 1.1;
+    --rainbow-size: 400%;
+    --rainbow-mxx: 2.6;     /* mouse magnification */
+    --rainbow-myy: 3.5;
+    --scanline-px: 1px;
+    --bars: 3%;
+
+    --glare-r1: 5%;
+    --glare-r2: 55%;
+    --glare-r3: 110%;
+    --glare-bright: 0.6;
+    --glare-contrast: 3;
+
+    --shine-opacity: 1;
+    --bars-opacity: 1;
+    --hot-opacity: 1;
+    --glare-opacity: 0.85;
+
+    --shine-blend: color-dodge;
+    --bars-blend: hard-light;
+    --hot-blend: luminosity;
+    --glare-blend: overlay;
+
+    position: absolute;
+    inset: 0;
+    pointer-events: auto;     /* picks up mouse moves over the stage */
+    perspective: 1500px;
+    user-select: none;
+  }
+
+  /* The card body has the rainbow + bars + radial pointer hotspot stacked
+     using ::before/::after, mirrored from the poke-cards.css recipe. */
+  .card .glow {
+    position: absolute;
+    inset: 0;
+    transform-style: preserve-3d;
+    will-change: transform;
+  }
+
+  /* Layer 1 — RAINBOW + SCANLINES */
+  .card .shine {
+    position: absolute; inset: 0;
+    background-image:
+      repeating-linear-gradient(
+        var(--rainbow-angle),
+        #c929f1, #0dbde9, #21e985, #eedf10, #f80e35,
+        #c929f1, #0dbde9, #21e985, #eedf10, #f80e35,
+        #c929f1, #0dbde9, #21e985, #eedf10, #f80e35
+      ),
+      repeating-linear-gradient(
+        90deg,
+        #000 0,
+        #000 calc(var(--scanline-px) * 2),
+        #666 calc(var(--scanline-px) * 2),
+        #666 calc(var(--scanline-px) * 4)
+      );
+    background-position:
+      calc(((50% - var(--background-x)) * var(--rainbow-mxx)) + 50%)
+      calc(((50% - var(--background-y)) * var(--rainbow-myy)) + 50%),
+      center center;
+    background-size: var(--rainbow-size) var(--rainbow-size), cover;
+    background-blend-mode: overlay;
+    filter:
+      brightness(var(--rainbow-bright))
+      contrast(var(--rainbow-contrast))
+      saturate(var(--rainbow-saturation));
+    mix-blend-mode: var(--shine-blend);
+    opacity: var(--shine-opacity);
+  }
+
+  /* Layer 2 — BARCODE bars */
+  .card .bars {
+    position: absolute; inset: 0;
+    background-image:
+      repeating-linear-gradient(90deg,
+        #000 calc(var(--bars) * 2), #aaa calc(var(--bars) * 3),
+        #000 calc(var(--bars) * 3.5), #aaa calc(var(--bars) * 4),
+        #000 calc(var(--bars) * 5), #000 calc(var(--bars) * 14)),
+      repeating-linear-gradient(90deg,
+        #000 calc(var(--bars) * 2), #aaa calc(var(--bars) * 3),
+        #000 calc(var(--bars) * 3.5), #aaa calc(var(--bars) * 4),
+        #000 calc(var(--bars) * 5), #000 calc(var(--bars) * 10));
+    background-position:
+      calc((((50% - var(--background-x)) * 1.65) + 50%) + (var(--background-y) * 0.5))
+      var(--background-x),
+      calc((((50% - var(--background-x)) * -0.9) + 50%) - (var(--background-y) * 0.75))
+      var(--background-y);
+    background-size: 200% 200%, 200% 200%;
+    background-blend-mode: screen;
+    filter: brightness(1.15) contrast(1.1);
+    mix-blend-mode: var(--bars-blend);
+    opacity: var(--bars-opacity);
+  }
+
+  /* Layer 3 — RADIAL pointer hotspot */
+  .card .hot {
+    position: absolute; inset: 0;
+    background-image: radial-gradient(
+      farthest-corner circle
+        at var(--pointer-x) var(--pointer-y),
+      hsla(0, 0%, 90%, 0.8) 0%,
+      hsla(0, 0%, 78%, 0.1) 25%,
+      hsl(0, 0%, 0%) 90%);
+    mix-blend-mode: var(--hot-blend);
+    filter: brightness(0.6) contrast(4);
+    opacity: var(--hot-opacity);
+  }
+
+  /* Layer 4 — GLARE radial */
+  .card .glare {
+    position: absolute; inset: 0;
+    background-image: radial-gradient(
+      farthest-corner circle at var(--pointer-x) var(--pointer-y),
+      hsl(180, 100%, 95%) var(--glare-r1),
+      hsla(0, 0%, 39%, 0.25) var(--glare-r2),
+      hsla(0, 0%, 0%, 0.36) var(--glare-r3));
+    mix-blend-mode: var(--glare-blend);
+    filter:
+      brightness(var(--glare-bright))
+      contrast(var(--glare-contrast));
+    opacity: var(--glare-opacity);
+  }
+
+  /* Mask cutout — a centered card-shaped clip so the holo only paints
+     inside the artwork rectangle, the way poke cards do. */
+  .card.clip .glow {
+    -webkit-mask-image: linear-gradient(black, black);
+    mask-image: linear-gradient(black, black);
+    /* Replace with a card-shape SVG mask via JS if needed. */
+  }
+
+  /* ── Side panel ────────────────────────────────────────── */
+  #panel { background: var(--panel); border-left: 1px solid #222;
+    overflow-y: auto; padding: 12px; }
+  #panel h2 { margin: 4px 0 6px; font-size: 12px; color: var(--accent);
+    text-transform: uppercase; letter-spacing: .08em; }
+  #panel h3 { margin: 14px 0 4px; font-size: 11px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .06em; }
+  #panel .row { display: grid; grid-template-columns: 110px 1fr 40px; gap: 6px;
+    align-items: center; margin: 3px 0; }
+  #panel .row label { font-size: 11px; color: var(--ink); }
+  #panel .row input[type="range"] { width: 100%; }
+  #panel .row .v { font-size: 10px; color: var(--muted); text-align: right; }
+  #panel select, #panel input[type="text"], #panel button {
+    width: 100%; background: #1c2030; color: var(--ink); border: 1px solid #2a3045;
+    padding: 4px 6px; font: inherit; box-sizing: border-box; border-radius: 3px; }
+  #panel select { padding: 5px 6px; }
+  #panel button { cursor: pointer; }
+  #panel button:hover { background: #2a3045; }
+  #panel .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  #panel .toggle { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
+  #panel hr { border: 0; border-top: 1px solid #222; margin: 14px 0 8px; }
+  #panel .hint { color: var(--muted); font-size: 10px; margin: 4px 0; }
+  #panel .preset-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+    margin: 4px 0; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <!-- Source: image OR iframe (toggle in panel) -->
+    <img id="src-img" class="src" src="https://images.unsplash.com/photo-1583212292454-1fe6229603b7?w=1200" alt="">
+    <iframe id="src-iframe" class="src" style="display:none" src=""></iframe>
+
+    <div id="card" class="card">
+      <div class="glow">
+        <div class="shine"></div>
+        <div class="bars"></div>
+        <div class="hot"></div>
+        <div class="glare"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="panel">
+    <h2>Holo workshop</h2>
+    <div class="hint">Move mouse over stage. Throwaway — not integrated.</div>
+
+    <h3>Source</h3>
+    <select id="srcMode">
+      <option value="img-cuttle">Image — cuttlefish (unsplash)</option>
+      <option value="img-fish">Image — fish (unsplash)</option>
+      <option value="iframe-staging">iframe — staging.relaxmoods.com/cuttlefish</option>
+      <option value="iframe-local">iframe — local cuttlefish-preview.html</option>
+    </select>
+
+    <h3>Layers</h3>
+    <div class="toggle"><input type="checkbox" id="enShine" checked><label for="enShine">Rainbow + scanlines</label></div>
+    <div class="toggle"><input type="checkbox" id="enBars" checked><label for="enBars">Barcode bars</label></div>
+    <div class="toggle"><input type="checkbox" id="enHot" checked><label for="enHot">Pointer hotspot</label></div>
+    <div class="toggle"><input type="checkbox" id="enGlare" checked><label for="enGlare">Glare</label></div>
+
+    <h3>Rainbow</h3>
+    <div class="row"><label>Angle</label><input type="range" id="rangle" min="0" max="360" value="110"><span class="v" id="vrangle"></span></div>
+    <div class="row"><label>Saturation</label><input type="range" id="rsat" min="0" max="300" value="120"><span class="v" id="vrsat"></span></div>
+    <div class="row"><label>Bright</label><input type="range" id="rbri" min="40" max="300" value="110"><span class="v" id="vrbri"></span></div>
+    <div class="row"><label>Contrast</label><input type="range" id="rcon" min="40" max="300" value="110"><span class="v" id="vrcon"></span></div>
+    <div class="row"><label>Size %</label><input type="range" id="rsize" min="100" max="800" value="400"><span class="v" id="vrsize"></span></div>
+    <div class="row"><label>Mouse mag X</label><input type="range" id="rmxx" min="0" max="800" value="260"><span class="v" id="vrmxx"></span></div>
+    <div class="row"><label>Mouse mag Y</label><input type="range" id="rmyy" min="0" max="800" value="350"><span class="v" id="vrmyy"></span></div>
+    <div class="row"><label>Opacity</label><input type="range" id="ropa" min="0" max="100" value="100"><span class="v" id="vropa"></span></div>
+    <div class="row"><label>Blend</label>
+      <select id="rbm">
+        <option>color-dodge</option><option>screen</option><option>overlay</option>
+        <option>soft-light</option><option>hard-light</option><option>difference</option>
+        <option>plus-lighter</option><option>color</option><option>hue</option>
+        <option>multiply</option>
+      </select><span></span></div>
+
+    <h3>Scanlines</h3>
+    <div class="row"><label>Spacing px</label><input type="range" id="scan" min="0.25" max="6" step="0.25" value="1"><span class="v" id="vscan"></span></div>
+
+    <h3>Bars</h3>
+    <div class="row"><label>Width %</label><input type="range" id="bw" min="0.5" max="10" step="0.5" value="3"><span class="v" id="vbw"></span></div>
+    <div class="row"><label>Opacity</label><input type="range" id="bopa" min="0" max="100" value="100"><span class="v" id="vbopa"></span></div>
+    <div class="row"><label>Blend</label>
+      <select id="bbm">
+        <option>hard-light</option><option>screen</option><option>overlay</option>
+        <option>soft-light</option><option>color-dodge</option><option>plus-lighter</option>
+      </select><span></span></div>
+
+    <h3>Pointer hotspot</h3>
+    <div class="row"><label>Opacity</label><input type="range" id="hopa" min="0" max="100" value="100"><span class="v" id="vhopa"></span></div>
+    <div class="row"><label>Blend</label>
+      <select id="hbm">
+        <option>luminosity</option><option>hard-light</option><option>color-dodge</option>
+        <option>overlay</option><option>screen</option><option>soft-light</option>
+      </select><span></span></div>
+
+    <h3>Glare</h3>
+    <div class="row"><label>Inner %</label><input type="range" id="gr1" min="0" max="50" value="5"><span class="v" id="vgr1"></span></div>
+    <div class="row"><label>Mid %</label><input type="range" id="gr2" min="20" max="100" value="55"><span class="v" id="vgr2"></span></div>
+    <div class="row"><label>Outer %</label><input type="range" id="gr3" min="50" max="200" value="110"><span class="v" id="vgr3"></span></div>
+    <div class="row"><label>Bright</label><input type="range" id="gbri" min="20" max="200" value="60"><span class="v" id="vgbri"></span></div>
+    <div class="row"><label>Contrast</label><input type="range" id="gcon" min="100" max="600" value="300"><span class="v" id="vgcon"></span></div>
+    <div class="row"><label>Opacity</label><input type="range" id="gopa" min="0" max="100" value="85"><span class="v" id="vgopa"></span></div>
+    <div class="row"><label>Blend</label>
+      <select id="gbm">
+        <option>overlay</option><option>soft-light</option><option>hard-light</option>
+        <option>screen</option><option>color-dodge</option><option>plus-lighter</option>
+      </select><span></span></div>
+
+    <hr>
+    <h3>Presets</h3>
+    <div class="preset-row">
+      <button data-preset="poke">Poke regular</button>
+      <button data-preset="cosmic">Cosmic strong</button>
+      <button data-preset="subtle">Subtle sheen</button>
+      <button data-preset="reset">Reset</button>
+    </div>
+
+    <hr>
+    <button id="copyVars">📋 Copy CSS variables</button>
+    <div class="hint">Copies a `:root { --rainbow-angle: ...; }` block you can paste into another stylesheet.</div>
+  </div>
+</div>
+
+<script>
+const card  = document.getElementById('card');
+const stage = document.getElementById('stage');
+
+// ── Mouse tracking → CSS vars ─────────────────────────────────────────
+function onMouse(e) {
+  const r = stage.getBoundingClientRect();
+  const x = ((e.clientX - r.left) / r.width)  * 100;
+  const y = ((e.clientY - r.top)  / r.height) * 100;
+  card.style.setProperty('--pointer-x',    x + '%');
+  card.style.setProperty('--pointer-y',    y + '%');
+  card.style.setProperty('--background-x', x + '%');
+  card.style.setProperty('--background-y', y + '%');
+}
+stage.addEventListener('pointermove', onMouse);
+// Drift centre when mouse leaves
+stage.addEventListener('pointerleave', () => {
+  card.style.setProperty('--pointer-x', '50%');
+  card.style.setProperty('--pointer-y', '50%');
+  card.style.setProperty('--background-x', '50%');
+  card.style.setProperty('--background-y', '50%');
+});
+// Touch + tilt — drives same vars on mobile
+window.addEventListener('deviceorientation', (e) => {
+  if (e.beta === null) return;
+  const x = 50 + Math.max(-30, Math.min(30, e.gamma)) * 1.5;
+  const y = 50 + Math.max(-30, Math.min(30, e.beta - 30)) * 1.5;
+  card.style.setProperty('--pointer-x', x + '%');
+  card.style.setProperty('--pointer-y', y + '%');
+  card.style.setProperty('--background-x', x + '%');
+  card.style.setProperty('--background-y', y + '%');
+});
+
+// ── Slider wiring ─────────────────────────────────────────────────────
+const SLIDERS = [
+  { id: 'rangle', cssVar: '--rainbow-angle',     fmt: v => v + 'deg', display: v => v + '°' },
+  { id: 'rsat',   cssVar: '--rainbow-saturation', fmt: v => (v/100),   display: v => (v/100).toFixed(2) },
+  { id: 'rbri',   cssVar: '--rainbow-bright',     fmt: v => (v/100),   display: v => (v/100).toFixed(2) },
+  { id: 'rcon',   cssVar: '--rainbow-contrast',   fmt: v => (v/100),   display: v => (v/100).toFixed(2) },
+  { id: 'rsize',  cssVar: '--rainbow-size',       fmt: v => v + '%',   display: v => v + '%' },
+  { id: 'rmxx',   cssVar: '--rainbow-mxx',        fmt: v => (v/100),   display: v => (v/100).toFixed(2) },
+  { id: 'rmyy',   cssVar: '--rainbow-myy',        fmt: v => (v/100),   display: v => (v/100).toFixed(2) },
+  { id: 'ropa',   cssVar: '--shine-opacity',      fmt: v => (v/100),   display: v => v + '%' },
+  { id: 'scan',   cssVar: '--scanline-px',        fmt: v => v + 'px',  display: v => v + 'px' },
+  { id: 'bw',     cssVar: '--bars',               fmt: v => v + '%',   display: v => v + '%' },
+  { id: 'bopa',   cssVar: '--bars-opacity',       fmt: v => (v/100),   display: v => v + '%' },
+  { id: 'hopa',   cssVar: '--hot-opacity',        fmt: v => (v/100),   display: v => v + '%' },
+  { id: 'gr1',    cssVar: '--glare-r1',           fmt: v => v + '%',   display: v => v + '%' },
+  { id: 'gr2',    cssVar: '--glare-r2',           fmt: v => v + '%',   display: v => v + '%' },
+  { id: 'gr3',    cssVar: '--glare-r3',           fmt: v => v + '%',   display: v => v + '%' },
+  { id: 'gbri',   cssVar: '--glare-bright',       fmt: v => (v/100),   display: v => (v/100).toFixed(2) },
+  { id: 'gcon',   cssVar: '--glare-contrast',     fmt: v => (v/100),   display: v => (v/100).toFixed(2) },
+  { id: 'gopa',   cssVar: '--glare-opacity',      fmt: v => (v/100),   display: v => v + '%' },
+];
+SLIDERS.forEach(({ id, cssVar, fmt, display }) => {
+  const el = document.getElementById(id);
+  const v  = document.getElementById('v' + id);
+  const apply = () => {
+    card.style.setProperty(cssVar, fmt(el.value));
+    v.textContent = display(el.value);
+  };
+  el.addEventListener('input', apply);
+  apply();
+});
+
+const BLENDS = [
+  { id: 'rbm', cssVar: '--shine-blend' },
+  { id: 'bbm', cssVar: '--bars-blend' },
+  { id: 'hbm', cssVar: '--hot-blend' },
+  { id: 'gbm', cssVar: '--glare-blend' },
+];
+BLENDS.forEach(({ id, cssVar }) => {
+  const el = document.getElementById(id);
+  el.addEventListener('change', () => card.style.setProperty(cssVar, el.value));
+});
+
+// Layer enable toggles
+[
+  ['enShine', '.shine'], ['enBars', '.bars'],
+  ['enHot', '.hot'],     ['enGlare', '.glare'],
+].forEach(([id, sel]) => {
+  const el = document.getElementById(id);
+  el.addEventListener('change', () => {
+    card.querySelector(sel).style.display = el.checked ? '' : 'none';
+  });
+});
+
+// ── Source switcher ───────────────────────────────────────────────────
+const srcImg    = document.getElementById('src-img');
+const srcIframe = document.getElementById('src-iframe');
+document.getElementById('srcMode').addEventListener('change', (e) => {
+  const mode = e.target.value;
+  if (mode === 'img-cuttle') {
+    srcImg.src = 'https://images.unsplash.com/photo-1583212292454-1fe6229603b7?w=1200';
+    srcImg.style.display = ''; srcIframe.style.display = 'none';
+  } else if (mode === 'img-fish') {
+    srcImg.src = 'https://images.unsplash.com/photo-1535591273668-578e31182c4f?w=1200';
+    srcImg.style.display = ''; srcIframe.style.display = 'none';
+  } else if (mode === 'iframe-staging') {
+    srcIframe.src = 'https://staging.relaxmoods.com/cuttlefish/';
+    srcImg.style.display = 'none'; srcIframe.style.display = '';
+  } else if (mode === 'iframe-local') {
+    srcIframe.src = './cuttlefish-preview.html';
+    srcImg.style.display = 'none'; srcIframe.style.display = '';
+  }
+});
+
+// ── Presets ───────────────────────────────────────────────────────────
+const PRESETS = {
+  poke: {                                                // poke regular-holo defaults
+    rangle: 110, rsat: 120, rbri: 110, rcon: 110, rsize: 400,
+    rmxx: 260, rmyy: 350, ropa: 100, scan: 1, bw: 3,
+    bopa: 100, hopa: 100, gr1: 5, gr2: 55, gr3: 110,
+    gbri: 60, gcon: 300, gopa: 85,
+    rbm: 'color-dodge', bbm: 'hard-light', hbm: 'luminosity', gbm: 'overlay',
+    enShine: true, enBars: true, enHot: true, enGlare: true,
+  },
+  cosmic: {
+    rangle: 70, rsat: 200, rbri: 130, rcon: 130, rsize: 300,
+    rmxx: 400, rmyy: 500, ropa: 100, scan: 0.5, bw: 2,
+    bopa: 60, hopa: 80, gr1: 8, gr2: 70, gr3: 130,
+    gbri: 80, gcon: 350, gopa: 100,
+    rbm: 'plus-lighter', bbm: 'screen', hbm: 'hard-light', gbm: 'screen',
+    enShine: true, enBars: true, enHot: true, enGlare: true,
+  },
+  subtle: {
+    rangle: 110, rsat: 80, rbri: 100, rcon: 100, rsize: 500,
+    rmxx: 180, rmyy: 250, ropa: 50, scan: 2, bw: 4,
+    bopa: 30, hopa: 60, gr1: 5, gr2: 60, gr3: 120,
+    gbri: 70, gcon: 200, gopa: 60,
+    rbm: 'soft-light', bbm: 'soft-light', hbm: 'overlay', gbm: 'soft-light',
+    enShine: true, enBars: false, enHot: true, enGlare: true,
+  },
+  reset: {
+    rangle: 110, rsat: 120, rbri: 110, rcon: 110, rsize: 400,
+    rmxx: 260, rmyy: 350, ropa: 100, scan: 1, bw: 3,
+    bopa: 100, hopa: 100, gr1: 5, gr2: 55, gr3: 110,
+    gbri: 60, gcon: 300, gopa: 85,
+    rbm: 'color-dodge', bbm: 'hard-light', hbm: 'luminosity', gbm: 'overlay',
+    enShine: true, enBars: true, enHot: true, enGlare: true,
+  },
+};
+function applyPreset(name) {
+  const p = PRESETS[name]; if (!p) return;
+  for (const k in p) {
+    const el = document.getElementById(k);
+    if (!el) continue;
+    if (el.type === 'checkbox') {
+      el.checked = p[k];
+      el.dispatchEvent(new Event('change'));
+    } else if (el.tagName === 'SELECT') {
+      el.value = p[k];
+      el.dispatchEvent(new Event('change'));
+    } else {
+      el.value = p[k];
+      el.dispatchEvent(new Event('input'));
+    }
+  }
+}
+document.querySelectorAll('button[data-preset]').forEach(b => {
+  b.addEventListener('click', () => applyPreset(b.dataset.preset));
+});
+
+// ── Copy CSS vars ─────────────────────────────────────────────────────
+document.getElementById('copyVars').addEventListener('click', () => {
+  const cs = getComputedStyle(card);
+  const vars = [
+    '--rainbow-angle', '--rainbow-saturation', '--rainbow-bright',
+    '--rainbow-contrast', '--rainbow-size', '--rainbow-mxx', '--rainbow-myy',
+    '--scanline-px', '--bars',
+    '--glare-r1', '--glare-r2', '--glare-r3', '--glare-bright', '--glare-contrast',
+    '--shine-opacity', '--bars-opacity', '--hot-opacity', '--glare-opacity',
+    '--shine-blend', '--bars-blend', '--hot-blend', '--glare-blend',
+  ];
+  const block = ':root {\n' +
+    vars.map(v => `  ${v}: ${cs.getPropertyValue(v).trim()};`).join('\n') +
+    '\n}';
+  navigator.clipboard.writeText(block);
+  const btn = document.getElementById('copyVars');
+  const old = btn.textContent;
+  btn.textContent = '✓ copied';
+  setTimeout(() => btn.textContent = old, 1200);
+});
+
+applyPreset('poke');
+</script>
+</body>
+</html>
