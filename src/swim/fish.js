@@ -91,8 +91,7 @@ export function createFish(type, opts = {}) {
     if (o.userData && o.userData.shimmerRing) shimmerRings.push(o.userData.shimmerRing);
   });
 
-  // Cache the first child (body group) for tail-wag anim
-  const bodyRoot = mesh.children[0];
+  const caudalFin = fish3d.fins.caudal;
 
   const tick = (elapsed) => {
     const phase = mesh.userData.swimPhase + elapsed * 3.0;
@@ -100,8 +99,7 @@ export function createFish(type, opts = {}) {
     if (material.uniforms && material.uniforms.uTime) {
       material.uniforms.uTime.value = elapsed;
     }
-    // Tail wag on the body group
-    if (bodyRoot) bodyRoot.rotation.y = Math.sin(phase) * 0.085;
+    if (caudalFin) caudalFin.rotation.y = Math.sin(phase) * 0.10;
     // Shimmer rings spin
     const rot = elapsed * 0.6 + mesh.userData.swimPhase * 0.4;
     for (const ring of shimmerRings) ring.rotation.z = rot;

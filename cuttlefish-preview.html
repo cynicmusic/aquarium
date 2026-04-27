@@ -16,6 +16,10 @@
      but keeps the canvas + keyboard shortcuts fully functional. */
   body.hide-ui #panel,
   body.hide-ui #mode-buttons { display:none; }
+  @media (pointer: coarse), (max-width: 760px) {
+    #panel, #mode-buttons { display:none !important; }
+    #view { width:100vw; height:100vh; flex:0 0 100vw; }
+  }
   h3 { color:#7bd; font-size:11px; text-transform:uppercase; margin:10px 0 6px; letter-spacing:1px; }
   .row { display:flex; align-items:center; margin-bottom:4px; }
   .row label { width:118px; color:#889; font-size:11px; }

@@ -34,12 +34,16 @@ export function buildCompleteFish(data, opts = {}) {
 
   // Build fins
   const fins = {};
-  fins.dorsal = buildFinMesh(data.geometry.dorsalFin, data.colors.fin, 0.06);
-  fins.anal = buildFinMesh(data.geometry.analFin, data.colors.fin, -0.06);
+  fins.dorsal = buildFinMesh(data.geometry.dorsalFin, data.colors.fin, 0);
+  fins.anal = buildFinMesh(data.geometry.analFin, data.colors.fin, 0);
   fins.caudal = buildCaudalMesh(data.geometry.caudalFin, data.colors.fin);
-  fins.pectoralL = buildFinMesh(data.geometry.pectoralFin, data.colors.fin, 0.08);
-  fins.pectoralR = buildFinMesh(data.geometry.pectoralFin, data.colors.fin, -0.08);
+  const pectoralZ = estimateBodyHalfWidth(data.geometry.body, data.geometry.pectoralFin, widthFactor);
+  fins.pectoralL = buildFinMesh(data.geometry.pectoralFin, data.colors.fin, pectoralZ);
+  fins.pectoralR = buildFinMesh(data.geometry.pectoralFin, data.colors.fin, -pectoralZ);
   if (fins.pectoralR) fins.pectoralR.scale.z = -1;
+  for (const [role, fin] of Object.entries(fins)) {
+    if (fin) fin.userData.role = role === 'caudal' ? 'caudalFin' : `${role}Fin`;
+  }
 
   if (fins.dorsal) root.add(fins.dorsal);
   if (fins.anal) root.add(fins.anal);
@@ -48,7 +52,7 @@ export function buildCompleteFish(data, opts = {}) {
   if (fins.pectoralR) root.add(fins.pectoralR);
 
   // Eye
-  const eye = buildEye(data.eye, data.geometry.body);
+  const eye = buildEye(data.eye, data.geometry.body, widthFactor);
   root.add(eye);
 
   // Center pivot on body
@@ -196,6 +200,40 @@ function widthProfile(t) {
   return taper;
 }
 
+function sampleProfileAtX(pts, x) {
+  if (pts.length === 0) return 0;
+  if (x <= pts[0].x) return pts[0].y;
+  if (x >= pts[pts.length - 1].x) return pts[pts.length - 1].y;
+  let lo = 0, hi = pts.length - 1;
+  while (lo < hi - 1) {
+    const mid = (lo + hi) >> 1;
+    if (pts[mid].x < x) lo = mid;
+    else hi = mid;
+  }
+  const span = pts[hi].x - pts[lo].x || 1;
+  const frac = (x - pts[lo].x) / span;
+  return pts[lo].y + (pts[hi].y - pts[lo].y) * frac;
+}
+
+function normalizedToBodyX(body, t) {
+  const top = body.top.map(p => ({ x: p[0], y: p[1] }));
+  const bot = body.bottom.map(p => ({ x: p[0], y: p[1] }));
+  const xMin = Math.min(top[0]?.x ?? 0, bot[0]?.x ?? 0);
+  const xMax = Math.max(top[top.length - 1]?.x ?? 1, bot[bot.length - 1]?.x ?? 1);
+  return xMin + THREE.MathUtils.clamp(t, 0, 1) * (xMax - xMin);
+}
+
+function estimateBodyHalfWidth(body, points, widthFactor) {
+  if (!points || !points.length) return 0.06;
+  let x = 0;
+  for (const p of points) x += p[0];
+  x /= points.length;
+  const top = body.top.map(p => ({ x: p[0], y: p[1] }));
+  const bot = body.bottom.map(p => ({ x: p[0], y: p[1] }));
+  const h = Math.max(0.01, sampleProfileAtX(top, x) - sampleProfileAtX(bot, x));
+  return Math.max(0.035, h * widthFactor * widthProfile(THREE.MathUtils.clamp(x, 0, 1)) * 0.55);
+}
+
 /**
  * Sample y-value from a sorted point array at parameter t (0→1)
  */
@@ -222,10 +260,10 @@ function sampleProfile(pts, t) {
 /**
  * Build a flat fin mesh from 2D point array
  */
-function buildFinMesh(points, color, zOffset) {
+function buildFinMesh(points, color, zOffset, pivot = { x: 0, y: 0 }) {
   if (!points || points.length < 3) return null;
 
-  const pts2d = points.map(p => new THREE.Vector2(p[0], p[1]));
+  const pts2d = points.map(p => new THREE.Vector2(p[0] - pivot.x, p[1] - pivot.y));
   const shape = new THREE.Shape(pts2d);
 
   const geo = new THREE.ShapeGeometry(shape);
@@ -248,7 +286,7 @@ function buildFinMesh(points, color, zOffset) {
     metalness: 0.05,
   }));
 
-  mesh.position.z = zOffset;
+  mesh.position.set(pivot.x, pivot.y, zOffset);
   return mesh;
 }
 
@@ -256,23 +294,37 @@ function buildFinMesh(points, color, zOffset) {
  * Build caudal (tail) fin mesh
  */
 function buildCaudalMesh(points, color) {
-  return buildFinMesh(points, color, 0);
+  if (!points || points.length < 3) return null;
+  let minX = Infinity;
+  for (const p of points) minX = Math.min(minX, p[0]);
+  const basePts = points.filter(p => Math.abs(p[0] - minX) < 0.0001);
+  const baseY = basePts.reduce((sum, p) => sum + p[1], 0) / Math.max(1, basePts.length);
+  return buildFinMesh(points, color, 0, { x: minX, y: baseY });
 }
 
 /**
  * Build a shimmer eye — hemisphere cornea over a pigmented iris with a moving
  * iridescent ring, pupil, and a layered glint. Replaces the old flat-disc eye.
  */
-function buildEye(eyeSpec, body) {
+function buildEye(eyeSpec, body, widthFactor) {
   const topPts = body.top.map(p => ({ x: p[0], y: p[1] }));
-  const eyeY = sampleProfile(topPts, eyeSpec.x) * (eyeSpec.yOffset || 0.3);
+  const botPts = body.bottom.map(p => ({ x: p[0], y: p[1] }));
+  const eyeX = normalizedToBodyX(body, eyeSpec.x);
+  const topY = sampleProfileAtX(topPts, eyeX);
+  const botY = sampleProfileAtX(botPts, eyeX);
+  const centerY = (topY + botY) * 0.5;
+  const height = Math.max(0.01, topY - botY);
+  const eyeY = centerY + height * (eyeSpec.yOffset || 0.3);
+  const r = Math.max(0.018, Math.min(eyeSpec.r || 0.025, 0.055));
+  const halfW = height * widthFactor * widthProfile(THREE.MathUtils.clamp(eyeSpec.x, 0, 1)) * 0.5;
+  const eyeZ = halfW + r * 0.35;
 
   const wrapper = new THREE.Group();
   const side1 = _buildShimmerEye3D(eyeSpec);
   const side2 = _buildShimmerEye3D(eyeSpec);
 
-  side1.position.set(eyeSpec.x, eyeY, 0.05);
-  side2.position.set(eyeSpec.x, eyeY, -0.05);
+  side1.position.set(eyeX, eyeY, eyeZ);
+  side2.position.set(eyeX, eyeY, -eyeZ);
   side2.rotation.y = Math.PI;
 
   wrapper.add(side1, side2);
@@ -291,7 +343,7 @@ function _buildShimmerEye3D(eyeSpec) {
   // 1. Concave socket: a small dark ring around the eye so it reads as inset,
   //    not pasted on top.
   const socket = new THREE.Mesh(
-    new THREE.RingGeometry(r * 1.1, r * 1.45, 40),
+    new THREE.RingGeometry(r * 1.0, r * 1.55, 40),
     new THREE.MeshStandardMaterial({ color: 0x1a1410, roughness: 0.9, metalness: 0.0, side: THREE.DoubleSide })
   );
   socket.position.z = -0.001;
@@ -299,10 +351,11 @@ function _buildShimmerEye3D(eyeSpec) {
 
   // 2. Sclera — cool-tinted off-white (was too warm/yellow before which read as red)
   const sclera = new THREE.Mesh(
-    new THREE.CircleGeometry(r * 1.08, 32),
+    new THREE.SphereGeometry(r * 1.02, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.52),
     new THREE.MeshStandardMaterial({ color: 0xeef2f5, roughness: 0.55, metalness: 0.0, side: THREE.DoubleSide })
   );
-  sclera.position.z = 0.0;
+  sclera.rotation.x = -Math.PI / 2;
+  sclera.position.z = r * 0.05;
   g.add(sclera);
 
   // 3. Iris disc — species-agnostic dark teal/grey (NOT red). Real fish eyes are
@@ -351,7 +404,7 @@ function _buildShimmerEye3D(eyeSpec) {
   // 6. Glossy cornea dome — refractive physical material, in FRONT of pupil so
   //    as camera moves the pupil appears to shift (real parallax).
   const cornea = new THREE.Mesh(
-    new THREE.SphereGeometry(r * 1.0, 24, 12, 0, Math.PI * 2, 0, Math.PI * 0.5),
+    new THREE.SphereGeometry(r * 1.08, 28, 14, 0, Math.PI * 2, 0, Math.PI * 0.5),
     new THREE.MeshPhysicalMaterial({
       color: 0xffffff, roughness: 0.02, metalness: 0.0,
       transmission: 0.9, thickness: 0.01, ior: 1.36,
@@ -360,7 +413,7 @@ function _buildShimmerEye3D(eyeSpec) {
     })
   );
   cornea.rotation.x = -Math.PI / 2;
-  cornea.position.z = r * 0.35;        // pushed out, pupil is behind → parallax
+  cornea.position.z = r * 0.45;        // pushed out, pupil is behind → parallax
   g.add(cornea);
 
   // 7. Catchlight — pushed further forward so it sits on the cornea surface,

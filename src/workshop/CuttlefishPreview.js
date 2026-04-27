@@ -9,10 +9,8 @@ import * as THREE from 'three';
 import { createCuttlefish, updateCuttlefish } from '../entities/Cuttlefish.js';
 import { SwimWorld } from '../swim/SwimWorld.js';
 
-// Hide all UI chrome (mode buttons + params panel) by default. Canvas +
-// keyboard shortcuts still work; ESC toggles chrome back on.
-const HIDE_UI_DEFAULT = false;
-if (HIDE_UI_DEFAULT) document.body.classList.add('hide-ui');
+// Hide all UI chrome if requested by class. Mobile hiding happens in CSS from
+// first paint so the panel never flashes before JS runs.
 
 // sliderId → { type: 'geom'|'uniform'|'anim', scale(v)=>value, uniformName? }
 const CONTROLS = {
@@ -99,8 +97,8 @@ const CONTROLS = {
 };
 
 const view = document.getElementById('view');
-const renderer = new THREE.WebGLRenderer({ antialias: true });
 const isTouch = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+const renderer = new THREE.WebGLRenderer({ antialias: !isTouch });
 const maxPixelRatio = isTouch ? 1 : 2;
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, maxPixelRatio));
 renderer.setSize(view.clientWidth, view.clientHeight);
@@ -296,10 +294,10 @@ const floorMat = new THREE.ShaderMaterial({
     }
   `,
 });
-// 160×160 gives enough resolution for the gentle displacement without melting
-// perf. Rotation is baked into the geometry so vertex shader can displace in
-// local y directly (= world y post-rotation).
-const _floorSegs = FEATURE_SCULPTED_FLOOR ? 160 : 1;
+// Desktop keeps the dense sculpted floor. Touch devices get a lighter grid:
+// same shader/look family, far fewer vertex-noise evaluations per frame.
+// Rotation is baked into the geometry so vertex shader can displace in local y.
+const _floorSegs = FEATURE_SCULPTED_FLOOR ? (isTouch ? 48 : 160) : 1;
 const _floorGeo = new THREE.PlaneGeometry(80, 80, _floorSegs, _floorSegs);
 _floorGeo.rotateX(-Math.PI / 2);
 const floor = new THREE.Mesh(_floorGeo, floorMat);
@@ -332,7 +330,7 @@ window.addEventListener('keydown', (e) => {
   if (tag === 'INPUT' && e.target.type === 'text') return;
   if (tag === 'TEXTAREA') return;
 
-  if (e.key === 'Escape') {
+  if (e.key === 'Escape' && !isTouch) {
     document.body.classList.toggle('hide-ui');
     return;
   }

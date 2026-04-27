@@ -141,6 +141,7 @@ export class FishManager {
 
     const fish = {
       mesh, type, personalY,
+      fins: fish3d.fins,
       direction: goingRight ? 1 : -1,
       speed,
       swimPhase: Math.random() * Math.PI * 2,
@@ -300,10 +301,8 @@ export class FishManager {
 
       // Swimming animation — primary motion is tail wag; body yaw is subtle.
       fish.swimPhase += dt * (2.5 + fish.speed * 1.5);
-      const tailWag = Math.sin(fish.swimPhase) * 0.085;
-      if (fish.mesh.children[0]) {
-        fish.mesh.children[0].rotation.y = tailWag;
-      }
+      const tailWag = Math.sin(fish.swimPhase) * 0.10;
+      if (fish.fins?.caudal) fish.fins.caudal.rotation.y = tailWag;
       // Very small body yaw wobble (not a disco move) so the whole fish looks
       // like it's swimming rather than sliding. ±1.5° max.
       if (!fish.turning) {
