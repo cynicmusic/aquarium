@@ -28,6 +28,59 @@ const NAME_MAP = {
   guppy: 'neonTetra',
 };
 
+function hashString(s) {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0) / 4294967295;
+}
+
+function holoParams(type, data, fish3d, iridMult) {
+  const seed = hashString(type + fish3d.root.uuid);
+  const family = Math.floor(seed * 5);
+  const bias = (seed * 1.73) % 1;
+  const base = data.neonHolo ? {
+    scaleSize: 58,
+    scaleOpacity: 0.06,
+    depthOpacity: 0.16,
+    iridIntensity: 0.12,
+    iridoIntensity: iridMult,
+    iridoThickness: 6.4,
+    iridoMaskScale: 24,
+    iridoMaskOpacity: 0.32,
+    iridoSpectralBias: bias,
+    holoSweepIntensity: 0.30,
+    holoSweepScale: 24,
+    holoSweepSpeed: 0.42,
+    holoSweepColor1: 0x72fff1,
+    holoSweepColor2: 0xff4fb0,
+  } : {
+    scaleSize: 34 + family * 8 + seed * 10,
+    scaleOpacity: 0.12 + seed * 0.12,
+    scaleContrast: 0.22 + seed * 0.24,
+    depthOpacity: 0.13 + seed * 0.18,
+    depthBlendMode: seed > 0.58 ? 1 : 0,
+    depthNoiseOffset: 2.0 + seed * 6.5,
+    depthFreqScale: 0.52 + seed * 0.48,
+    iridIntensity: 0.11 + seed * 0.22,
+    iridoIntensity: Math.min(1.15, Math.max(0.38, iridMult * (1.85 + family * 0.28))),
+    iridoThickness: 3.5 + family * 0.8 + seed * 1.7,
+    iridoMaskScale: 10 + family * 4 + seed * 10,
+    iridoMaskOpacity: 0.18 + (family % 3) * 0.18,
+    iridoSpectralBias: bias,
+    iridColor1: [0x33d9ff, 0xff55c8, 0x6cffd0, 0xffc35a, 0x8f7cff][family],
+    iridColor2: [0xff4fa8, 0x5efcff, 0xffda64, 0x7b62ff, 0x38ffd1][family],
+    holoSweepIntensity: 0.14 + seed * 0.26,
+    holoSweepScale: 12 + family * 5 + seed * 8,
+    holoSweepSpeed: 0.22 + seed * 0.46,
+    holoSweepColor1: [0x38f8ff, 0xff58c8, 0x67ffd6, 0xffc85a, 0x9a75ff][family],
+    holoSweepColor2: [0xff64bd, 0x76fff1, 0xffe168, 0x7c65ff, 0x30ffd0][family],
+  };
+  return base;
+}
+
 /**
  * Fish pace left-right across the full screen width, always showing side profiles.
  * Each fish has its own vertical lane so they spread across the view.
@@ -38,7 +91,7 @@ export class FishManager {
     this.aquariumScene = aquariumScene;
     this.fishes = [];
     this.schools = new Map();
-    this.debugLabels = true;
+    this.debugLabels = false;
     this._ready = false;
     this._spawnDefaults();
   }
@@ -101,24 +154,7 @@ export class FishManager {
       mottled:           0.10,   // shy bottom-dweller
     };
     const iridMult = data.iridoMultiplier ?? PATTERN_IRID[patternType] ?? 0.25;
-    const spectralBias = (fish3d.root.uuid.charCodeAt(0) % 100) / 100;
-    const material = createFishMaterial(data.pattern, data.colors, data.neonHolo ? {
-      scaleSize:         58,
-      scaleOpacity:      0.06,
-      depthOpacity:      0.16,
-      iridIntensity:     0.12,
-      iridoIntensity:    iridMult,
-      iridoThickness:    6.4,
-      iridoMaskScale:    24,
-      iridoMaskOpacity:  0.32,
-      iridoSpectralBias: spectralBias,
-    } : {
-      iridoIntensity:   iridMult,
-      iridoThickness:   5.0,
-      iridoMaskScale:   16,
-      iridoMaskOpacity: 0.6,
-      iridoSpectralBias:spectralBias,  // species-unique bias
-    });
+    const material = createFishMaterial(data.pattern, data.colors, holoParams(type, data, fish3d, iridMult));
     const bodyMesh = new THREE.Mesh(fish3d.bodyGeo, material);
     fish3d.root.add(bodyMesh);
 

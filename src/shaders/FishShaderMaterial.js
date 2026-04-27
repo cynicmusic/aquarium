@@ -363,6 +363,11 @@ uniform float uIridoThickness;   // effective film thickness (nm/100)
 uniform float uIridoSpectralBias; // shifts the rainbow (0..1)
 uniform float uIridoMaskScale;   // noise frequency for patchNiness
 uniform float uIridoMaskOpacity; // how much the mask cuts through (0=full body, 1=tiny patchNes)
+uniform float uHoloSweepIntensity;
+uniform float uHoloSweepScale;
+uniform float uHoloSweepSpeed;
+uniform vec3 uHoloSweepColor1;
+uniform vec3 uHoloSweepColor2;
 uniform float uTime;
 
 // Lighting
@@ -491,6 +496,15 @@ void main() {
     // Add per-scale glint
     sheen += vec3(0.85, 0.90, 1.0) * scaleGlint * uIridoIntensity * 0.25;
     composited = sheen;
+  }
+
+  if (uHoloSweepIntensity > 0.001) {
+    float sweep = 0.5 + 0.5 * sin((uv.x * uHoloSweepScale + uv.y * 2.5) - uTime * uHoloSweepSpeed + uIridoSpectralBias * 6.28318);
+    float bands = smoothstep(0.62, 0.98, sweep);
+    float broken = smoothstep(0.18, 0.80, fbm2D(uv * (uHoloSweepScale * 0.35) + uTime * 0.025, 1.0, 3));
+    float gate = (0.35 + 0.65 * vFresnel) * bands * broken;
+    vec3 holoSweep = mix(uHoloSweepColor1, uHoloSweepColor2, sweep);
+    composited += holoSweep * gate * uHoloSweepIntensity;
   }
 
   // ── Lighting ──
@@ -642,6 +656,11 @@ export function createFishMaterial(patternConfig, colors, layerParams = {}) {
     uIridoSpectralBias: { value: layerParams.iridoSpectralBias ?? 0.0 },
     uIridoMaskScale:    { value: layerParams.iridoMaskScale    ?? 14.0 },
     uIridoMaskOpacity:  { value: layerParams.iridoMaskOpacity  ?? 0.7 },
+    uHoloSweepIntensity:{ value: layerParams.holoSweepIntensity ?? 0.0 },
+    uHoloSweepScale:    { value: layerParams.holoSweepScale ?? 18.0 },
+    uHoloSweepSpeed:    { value: layerParams.holoSweepSpeed ?? 0.7 },
+    uHoloSweepColor1:   { value: new THREE.Color(layerParams.holoSweepColor1 ?? 0x66faff) },
+    uHoloSweepColor2:   { value: new THREE.Color(layerParams.holoSweepColor2 ?? 0xff66d8) },
     uTime:              { value: 0.0 },
 
     // Lighting

@@ -96,21 +96,81 @@ void main() {
 }
 `;
 
+const causticVertex = /* glsl */`
+varying vec2 vUv;
+varying vec3 vWorldPos;
+void main() {
+  vUv = uv;
+  vec4 wp = modelMatrix * vec4(position, 1.0);
+  vWorldPos = wp.xyz;
+  gl_Position = projectionMatrix * viewMatrix * wp;
+}
+`;
+
+const causticFragment = /* glsl */`
+uniform float uTime;
+uniform vec3 uColorA;
+uniform vec3 uColorB;
+uniform float uIntensity;
+uniform float uScale;
+varying vec2 vUv;
+varying vec3 vWorldPos;
+
+float hash21(vec2 p) {
+  p = fract(p * vec2(123.34, 456.21));
+  p += dot(p, p + 45.32);
+  return fract(p.x * p.y);
+}
+
+float softCell(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  float m = 1.0;
+  for (int y = -1; y <= 1; y++) {
+    for (int x = -1; x <= 1; x++) {
+      vec2 g = vec2(float(x), float(y));
+      float h = hash21(i + g);
+      vec2 o = 0.5 + 0.38 * sin(uTime * 0.18 + 6.2831 * vec2(h, hash21(i + g + 7.1)));
+      vec2 r = g + o - f;
+      m = min(m, dot(r, r));
+    }
+  }
+  return m;
+}
+
+void main() {
+  vec2 drift = vec2(uTime * 0.025, -uTime * 0.018);
+  vec2 uv = vUv * uScale + drift;
+  float a = softCell(uv);
+  float b = softCell(uv * 1.72 + vec2(4.1, 1.7) - drift.yx);
+  float web = abs(a - b);
+  float line = smoothstep(0.115, 0.018, web);
+  line *= smoothstep(0.0, 0.16, vUv.y) * smoothstep(1.0, 0.72, vUv.y);
+
+  float wave = 0.5 + 0.5 * sin(vUv.x * 5.0 + vUv.y * 3.0 + uTime * 0.14);
+  vec3 col = mix(uColorA, uColorB, wave);
+  gl_FragColor = vec4(col * line * uIntensity, line * 0.18 * uIntensity);
+}
+`;
+
 export class LightingSystem {
   constructor(aquariumScene) {
     this.scene = aquariumScene;
     this.lights = [];
     this.accentLights = [];
     this.volumetrics = [];
+    this.caustics = [];
     this.params = {
       ambientIntensity: 0.25,
-      beamCount: 5,
-      accentCount: 4,
+      beamCount: 7,
+      accentCount: 7,
+      causticCount: 4,
       hueRange: { min: 220, max: 300 }, // purple-blue-red range
     };
 
     this._createAmbient();
     this._createAccentLights();
+    this._createCausticCurtains();
     this._generateBeams();
   }
 
@@ -147,10 +207,10 @@ export class LightingSystem {
   }
 
   _createAccentLights() {
-    const colors = [0x55ddff, 0xff4f98, 0xffb84d, 0x6cffd0];
+    const colors = [0x55ddff, 0xff4f98, 0xffb84d, 0x6cffd0, 0x7a5cff, 0x2fffd2, 0xff6fd8];
     const { tankWidth, tankHeight, tankDepth } = this.scene.params;
     for (let i = 0; i < this.params.accentCount; i++) {
-      const light = new THREE.PointLight(colors[i % colors.length], 1.4, 12, 1.5);
+      const light = new THREE.PointLight(colors[i % colors.length], 1.65, 14, 1.35);
       const t = i / Math.max(1, this.params.accentCount - 1);
       light.position.set(
         (t - 0.5) * tankWidth * 0.85,
@@ -161,6 +221,44 @@ export class LightingSystem {
       light.userData.phase = i * 1.73;
       this.scene.scene.add(light);
       this.accentLights.push(light);
+    }
+  }
+
+  _createCausticCurtains() {
+    const { tankWidth, tankHeight, tankDepth } = this.scene.params;
+    const colors = [
+      [0x49e8ff, 0xa25cff],
+      [0x48ffd0, 0xff55b8],
+      [0xffc45c, 0x66f6ff],
+      [0x8b6cff, 0x2fffd2],
+    ];
+    for (let i = 0; i < this.params.causticCount; i++) {
+      const mat = new THREE.ShaderMaterial({
+        vertexShader: causticVertex,
+        fragmentShader: causticFragment,
+        uniforms: {
+          uTime: { value: 0 },
+          uColorA: { value: new THREE.Color(colors[i % colors.length][0]) },
+          uColorB: { value: new THREE.Color(colors[i % colors.length][1]) },
+          uIntensity: { value: 0.55 + i * 0.08 },
+          uScale: { value: 2.6 + i * 0.45 },
+        },
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      });
+      const geo = new THREE.PlaneGeometry(tankWidth * 1.22, tankHeight * 1.15, 1, 1);
+      const mesh = new THREE.Mesh(geo, mat);
+      const side = i % 2 === 0 ? 1 : -1;
+      mesh.position.set((i - 1.5) * tankWidth * 0.16, tankHeight * 0.52, side * tankDepth * 0.43);
+      mesh.rotation.y = side > 0 ? Math.PI : 0;
+      mesh.rotation.z = (i - 1.5) * 0.035;
+      mesh.renderOrder = 2;
+      mesh.userData.phase = i * 2.11;
+      mesh.userData.base = mesh.position.clone();
+      this.scene.scene.add(mesh);
+      this.caustics.push({ mesh, material: mat });
     }
   }
 
@@ -191,6 +289,9 @@ export class LightingSystem {
       const spot = new THREE.SpotLight(color, 8 + Math.random() * 6, tankHeight * 4, Math.PI * (0.2 + Math.random() * 0.25), 0.4, 1.0);
       spot.position.set(x, tankHeight + 2, z);
       spot.target.position.set(x + (Math.random() - 0.5) * 4, 0, z + (Math.random() - 0.5) * 4);
+      spot.userData.base = spot.position.clone();
+      spot.userData.targetBase = spot.target.position.clone();
+      spot.userData.phase = t * Math.PI * 2 + Math.random();
       spot.castShadow = true;
       spot.shadow.mapSize.set(512, 512);
       this.scene.scene.add(spot);
@@ -217,6 +318,8 @@ export class LightingSystem {
       });
       const cone = new THREE.Mesh(coneGeo, coneMat);
       cone.position.set(x, tankHeight / 2 + 1, z);
+      cone.userData.base = cone.position.clone();
+      cone.userData.phase = spot.userData.phase;
       this.scene.scene.add(cone);
       this.volumetrics.push({ mesh: cone, material: coneMat, spot });
     }
@@ -229,6 +332,19 @@ export class LightingSystem {
   update(elapsed) {
     this.volumetrics.forEach(v => {
       v.material.uniforms.uTime.value = elapsed;
+      const phase = v.spot.userData.phase;
+      const base = v.spot.userData.base;
+      const targetBase = v.spot.userData.targetBase;
+      const swayX = Math.sin(elapsed * 0.105 + phase) * 1.5;
+      const swayZ = Math.cos(elapsed * 0.085 + phase * 1.7) * 1.1;
+      v.spot.position.x = base.x + swayX * 0.35;
+      v.spot.position.z = base.z + swayZ * 0.25;
+      v.spot.target.position.x = targetBase.x + swayX;
+      v.spot.target.position.z = targetBase.z + swayZ;
+      v.spot.intensity = 7.5 + Math.sin(elapsed * 0.13 + phase) * 2.5;
+      v.mesh.position.x = v.mesh.userData.base.x + swayX * 0.45;
+      v.mesh.position.z = v.mesh.userData.base.z + swayZ * 0.35;
+      v.mesh.rotation.z = Math.sin(elapsed * 0.07 + phase) * 0.055;
     });
     for (const light of this.accentLights) {
       const base = light.userData.base;
@@ -238,6 +354,14 @@ export class LightingSystem {
       light.position.z = base.z + Math.cos(elapsed * 0.16 + phase) * 0.8;
       light.intensity = 1.05 + Math.sin(elapsed * 0.31 + phase) * 0.35;
     }
+    for (const c of this.caustics) {
+      const phase = c.mesh.userData.phase;
+      const base = c.mesh.userData.base;
+      c.material.uniforms.uTime.value = elapsed + phase * 3.0;
+      c.mesh.position.x = base.x + Math.sin(elapsed * 0.055 + phase) * 0.9;
+      c.mesh.position.y = base.y + Math.sin(elapsed * 0.045 + phase * 1.4) * 0.5;
+      c.mesh.rotation.z = Math.sin(elapsed * 0.04 + phase) * 0.07;
+    }
   }
 
   getDebugInfo() {
@@ -246,6 +370,7 @@ export class LightingSystem {
       params: {
         beams: this.lights.length,
         accents: this.accentLights.length,
+        caustics: this.caustics.length,
         ambient: this.params.ambientIntensity.toFixed(3),
         hueRange: `${this.params.hueRange.min}-${this.params.hueRange.max}`,
       },
