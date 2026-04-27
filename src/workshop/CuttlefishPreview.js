@@ -141,6 +141,38 @@ rim.position.set(-4, 2, -3); scene.add(rim);
 const fill = new THREE.PointLight(0xff88aa, 0.8, 10);
 fill.position.set(0, -1.5, 2); scene.add(fill);
 
+// ── Sparse cosmic sky ───────────────────────────────────────────────────
+// A restrained field of large pixel-like purple stars behind the swim volume.
+// It mostly appears on low-angle cameras, as little square glints in the air.
+const skyGeo = new THREE.BufferGeometry();
+const skyCount = 55;
+const skyPos = new Float32Array(skyCount * 3);
+const skyCol = new Float32Array(skyCount * 3);
+for (let i = 0; i < skyCount; i++) {
+  const o = i * 3;
+  skyPos[o]     = (Math.random() - 0.5) * 120;
+  skyPos[o + 1] = 7 + Math.random() * 28;
+  skyPos[o + 2] = -52 - Math.random() * 42;
+  const c = new THREE.Color().setHSL(0.72 + Math.random() * 0.08, 0.35, 0.35 + Math.random() * 0.20);
+  skyCol[o] = c.r; skyCol[o + 1] = c.g; skyCol[o + 2] = c.b;
+}
+skyGeo.setAttribute('position', new THREE.BufferAttribute(skyPos, 3));
+skyGeo.setAttribute('color', new THREE.BufferAttribute(skyCol, 3));
+const skyPixels = new THREE.Points(
+  skyGeo,
+  new THREE.PointsMaterial({
+    size: 3,
+    sizeAttenuation: false,
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.34,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  }),
+);
+skyPixels.renderOrder = -2;
+scene.add(skyPixels);
+
 // ── Seafloor ───────────────────────────────────────────────────────────
 // SPECULATIVE: sculpted terrain — vertex displacement (fBM dunes + ripples)
 // adapted from environment/Sand.js, layered under the existing caustic
@@ -253,16 +285,34 @@ const floorMat = new THREE.ShaderMaterial({
       return v;
     }
 
-    float caustic(vec2 p, float t) {
-      float c1 = 0.0, c2 = 0.0;
-      for (int i = 0; i < 3; i++) {
-        float fi = float(i);
-        c1 += sin(p.x * (1.0 + fi * 0.7) + t * (0.25 + fi * 0.12));
-        c2 += cos(p.y * (1.0 + fi * 0.6) + t * (0.30 + fi * 0.10));
+    vec2 hash22(vec2 p) {
+      vec3 p3 = fract(vec3(p.xyx) * vec3(0.1031, 0.1030, 0.0973));
+      p3 += dot(p3, p3.yzx + 33.33);
+      return fract((p3.xx + p3.yz) * p3.zy);
+    }
+    float voronoiDist(vec2 p, float t, float offset) {
+      vec2 n = floor(p);
+      vec2 f = fract(p);
+      float md = 8.0;
+      float md2 = 8.0;
+      for (int j = -1; j <= 1; j++) {
+        for (int i = -1; i <= 1; i++) {
+          vec2 g = vec2(float(i), float(j));
+          vec2 o = hash22(n + g);
+          o = 0.5 + 0.5 * sin(t * 0.6 + offset + 6.2831 * o);
+          vec2 r = g + o - f;
+          float d = dot(r, r);
+          if (d < md) { md2 = md; md = d; }
+          else if (d < md2) { md2 = d; }
+        }
       }
-      float v = (c1 * c2) * 0.15 + 0.5;
-      v = pow(max(0.0, v), 4.0) * 2.2;
-      return v;
+      return md2 - md;
+    }
+    float caustic(vec2 uv, float t) {
+      float c1 = voronoiDist(uv * 3.0, t, 0.0);
+      float c2 = voronoiDist(uv * 4.2 + vec2(3.7, 1.2), t, 2.5);
+      float combined = c1 * c2 * 4.0;
+      return pow(max(combined, 0.0), 0.8);
     }
 
     void main() {
@@ -279,19 +329,23 @@ const floorMat = new THREE.ShaderMaterial({
       float diff = max(dot(vNormal, L), 0.0) * 0.35 + 0.75;
       sand *= diff;
 
-      // Caustic light dance — two scales for richness
-      float c  = caustic(wp * 0.85, uTime);
-      float c2 = caustic(wp * 1.7 + 7.3, uTime * 1.3) * 0.55;
-      float caus = clamp(c + c2, 0.0, 3.0);
-      vec3 col = sand + uCaust * caus * 0.35;
+      // Old aquarium caustic family, now folded into the floor material.
+      vec2 cuv = wp * 0.25;
+      float caus = clamp(caustic(cuv, uTime) * 1.35, 0.0, 2.0);
+      vec3 col = sand + uCaust * caus * 0.18;
 
-      // Old-aquarium-style wet sand glints: cheap Blinn specular on the
-      // displaced normal, boosted by caustic bands so the floor catches light
-      // instead of reading fully matte.
+      // Caustic "bump map": perturb the shading normal from the caustic field
+      // itself, so bright ripples also create small glancing highlights.
+      float epsC = 0.12;
+      float cL = caustic(cuv + vec2(-epsC, 0.0), uTime);
+      float cR = caustic(cuv + vec2( epsC, 0.0), uTime);
+      float cD = caustic(cuv + vec2(0.0, -epsC), uTime);
+      float cU = caustic(cuv + vec2(0.0,  epsC), uTime);
+      vec3 causticN = normalize(normalize(vNormal) + vec3(cL - cR, 0.0, cD - cU) * 0.12);
       vec3 V = normalize(cameraPosition - vWorldPos);
       vec3 H = normalize(L + V);
-      float spec = pow(max(dot(normalize(vNormal), H), 0.0), 42.0);
-      col += uCaust * spec * (0.10 + caus * 0.12);
+      float spec = pow(max(dot(causticN, H), 0.0), 42.0);
+      col += uCaust * spec * (0.07 + caus * 0.07);
 
       // Distance fade into the purple fog bank
       float dist = length(vWorldPos - uCamPos);

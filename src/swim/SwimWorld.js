@@ -39,6 +39,7 @@ import {
   createCoralBucket, isCoralInstanceable,
 } from './coral.js';
 import { loadSpecies, availableSpecies, createFish } from './fish.js';
+import { createCrabs } from './crabs.js';
 
 const TWO_PI = Math.PI * 2;
 
@@ -110,6 +111,7 @@ export class SwimWorld {
     this.plantBuckets = [];     // [InstancedMesh-bucket] — one per instanced preset
     this.coralBuckets = [];     // [InstancedMesh-bucket] — one per instanced preset
     this.fishes = [];   // [{mesh, tick, pathX0, pathZ0, pathYBase, ampX, ampZ, ampY, freqX, freqZ, freqY, relSpeed}]
+    this.crabSystem = null;
     this.lights = [];   // [THREE.Light]
 
     // Fog descriptor passed to plant materials so far-plants dissolve into
@@ -137,6 +139,7 @@ export class SwimWorld {
 
     this._scatterFlora();
     this._addDebugLights();
+    this.crabSystem = createCrabs(this.scene, this.cuttle, { floorY: this.floorY, count: 3 });
     this._spawnFishPod();
   }
 
@@ -317,6 +320,7 @@ export class SwimWorld {
       c.mesh.rotation.z = Math.sin(elapsed * 0.5 + u.swayPhase * 1.3) * u.swayAmp * 0.7;
     }
     this._recycleFlora();
+    if (this.crabSystem) this.crabSystem.update(dt, elapsed);
 
     // Fish: oscillate on their parallel lanes around the cuttle. Because their
     // lane anchor is already offset from the cuttle and amplitude >> lane
@@ -427,6 +431,10 @@ export class SwimWorld {
       this.scene.remove(bucket.mesh);
       bucket.dispose();
     }
+    if (this.crabSystem) {
+      this.crabSystem.dispose();
+      this.crabSystem = null;
+    }
     for (const f of this.fishes) this.scene.remove(f.mesh);
     for (const l of this.lights) this.scene.remove(l);
     this.plants.length = 0;
@@ -450,6 +458,7 @@ export class SwimWorld {
       plantBuckets: this.plantBuckets.length,
       coralBuckets: this.coralBuckets.length,
       fishes: this.fishes.length,
+      crabs: this.crabSystem ? this.crabSystem.crabs.length : 0,
       lights: this.lights.length,
       fogColor: '#' + this.fogColor.toString(16).padStart(6, '0'),
     };

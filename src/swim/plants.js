@@ -87,6 +87,10 @@ void main() {
   float fogT = smoothstep(uFogNear, uFogFar, dist);
   col = mix(col, uFogColor, fogT);
 
+  // Mostly opaque so depth can tame overdraw, with a small atmospheric lift
+  // to keep close overlapping leaves from reading as flat green cutouts.
+  col = mix(col, uFogColor, 0.08);
+  col *= 0.92 + gradT * 0.10;
   gl_FragColor = vec4(col, 1.0);
 }
 `;
