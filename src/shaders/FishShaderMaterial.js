@@ -261,11 +261,15 @@ const VERT = /* glsl */`
 varying vec2 vUv;
 varying vec3 vNormal;
 varying vec3 vWorldPos;
+varying vec3 vWorldTangent;
+varying vec3 vWorldBitangent;
 varying float vFresnel;
 
 void main() {
   vUv = uv;
   vNormal = normalize(normalMatrix * normal);
+  vWorldTangent = normalize(mat3(modelMatrix) * vec3(1.0, 0.0, 0.0));
+  vWorldBitangent = normalize(mat3(modelMatrix) * vec3(0.0, 1.0, 0.0));
   vec4 wp = modelMatrix * vec4(position, 1.0);
   vWorldPos = wp.xyz;
   vec3 viewDir = normalize(cameraPosition - wp.xyz);
@@ -285,6 +289,8 @@ ${SCALE_GLSL}
 varying vec2 vUv;
 varying vec3 vNormal;
 varying vec3 vWorldPos;
+varying vec3 vWorldTangent;
+varying vec3 vWorldBitangent;
 varying float vFresnel;
 
 // Pattern uniforms
@@ -516,6 +522,39 @@ void main() {
 
   // Rim light
   lit += vec3(0.3, 0.4, 0.5) * pow(vFresnel, 3.0) * 0.15;
+
+  if (uHoloSweepIntensity > 0.001) {
+    vec3 viewDir = normalize(cameraPosition - vWorldPos);
+    float pointerX = 0.5 + dot(viewDir, normalize(vWorldTangent)) * 0.86;
+    float pointerY = 0.5 + dot(viewDir, normalize(vWorldBitangent)) * 0.86;
+    vec2 foilPointer = clamp(vec2(pointerX, pointerY), 0.0, 1.0);
+    vec2 bg = uv + (foilPointer - 0.5) * vec2(2.6, 3.5);
+
+    float rainbowPhase = bg.x * uHoloSweepScale
+      + bg.y * (uHoloSweepScale * 0.38)
+      + uTime * uHoloSweepSpeed
+      + uIridoSpectralBias * 6.28318;
+    vec3 rainbow = vec3(
+      0.5 + 0.5 * sin(rainbowPhase),
+      0.5 + 0.5 * sin(rainbowPhase + 2.094),
+      0.5 + 0.5 * sin(rainbowPhase + 4.189)
+    );
+    rainbow = mix(rainbow, uHoloSweepColor1, 0.18);
+
+    float scan = 0.50 + 0.50 * smoothstep(0.34, 0.46, fract((uv.y + foilPointer.y * 0.24) * 92.0));
+    float barsA = smoothstep(0.24, 0.48, sin((uv.x + foilPointer.x * 0.9 + foilPointer.y * 0.35) * 34.0));
+    float barsB = smoothstep(0.40, 0.58, sin((uv.x - foilPointer.x * 0.55) * 15.0 + uTime * 0.42));
+    float bars = max(barsA * 0.7, barsB);
+
+    float hot = 1.0 - smoothstep(0.02, 0.72, distance(uv, foilPointer));
+    float glare = pow(hot, 1.35) + pow(max(0.0, vFresnel), 1.35) * 1.15;
+    float anglePop = smoothstep(0.05, 0.65, abs(dot(viewDir, normalize(vWorldTangent))));
+    float foilMask = (0.26 + bars * 0.70 + glare * 1.25) * scan * (0.55 + anglePop);
+
+    vec3 dodge = lit / max(vec3(0.18), 1.0 - rainbow * 0.72);
+    lit = mix(lit, dodge, clamp(foilMask * uHoloSweepIntensity * 0.46, 0.0, 0.92));
+    lit += mix(rainbow, uHoloSweepColor2, hot * 0.35) * foilMask * uHoloSweepIntensity * 1.12;
+  }
 
   gl_FragColor = vec4(lit, 1.0);
 }

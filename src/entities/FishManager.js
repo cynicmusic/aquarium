@@ -51,9 +51,9 @@ function holoParams(type, data, fish3d, iridMult) {
     iridoMaskScale: 24,
     iridoMaskOpacity: 0.32,
     iridoSpectralBias: bias,
-    holoSweepIntensity: 0.30,
-    holoSweepScale: 24,
-    holoSweepSpeed: 0.42,
+    holoSweepIntensity: 0.95,
+    holoSweepScale: 42,
+    holoSweepSpeed: 1.55,
     holoSweepColor1: 0x72fff1,
     holoSweepColor2: 0xff4fb0,
   } : {
@@ -72,9 +72,9 @@ function holoParams(type, data, fish3d, iridMult) {
     iridoSpectralBias: bias,
     iridColor1: [0x33d9ff, 0xff55c8, 0x6cffd0, 0xffc35a, 0x8f7cff][family],
     iridColor2: [0xff4fa8, 0x5efcff, 0xffda64, 0x7b62ff, 0x38ffd1][family],
-    holoSweepIntensity: 0.14 + seed * 0.26,
-    holoSweepScale: 12 + family * 5 + seed * 8,
-    holoSweepSpeed: 0.22 + seed * 0.46,
+    holoSweepIntensity: 0.62 + seed * 0.58,
+    holoSweepScale: 28 + family * 8 + seed * 16,
+    holoSweepSpeed: 0.85 + seed * 1.15,
     holoSweepColor1: [0x38f8ff, 0xff58c8, 0x67ffd6, 0xffc85a, 0x9a75ff][family],
     holoSweepColor2: [0xff64bd, 0x76fff1, 0xffe168, 0x7c65ff, 0x30ffd0][family],
   };
@@ -217,6 +217,8 @@ export class FishManager {
       turnProgress: 0,
       // Bubble timer for intermittent fish bubbles
       bubbleTimer: 3 + Math.random() * 10,
+      foilPhase: Math.random() * Math.PI * 2,
+      foilYawAmp: data.neonHolo ? 0.075 : 0.045 + Math.random() * 0.035,
     };
 
     this.fishes.push(fish);
@@ -371,7 +373,9 @@ export class FishManager {
       // like it's swimming rather than sliding. ±1.5° max.
       if (!fish.turning) {
         const targetBase = fish.direction > 0 ? Math.PI : 0;
-        fish.mesh.rotation.y = targetBase + Math.sin(fish.swimPhase * 0.35) * 0.026;
+        fish.mesh.rotation.y = targetBase
+          + Math.sin(fish.swimPhase * 0.35) * 0.026
+          + Math.sin(elapsed * (1.15 + fish.speed * 0.35) + fish.foilPhase) * fish.foilYawAmp;
       }
       // Slight vertical flex
       fish.mesh.rotation.z = Math.sin(elapsed * 0.8 + fish.swimPhase) * 0.015;
