@@ -203,6 +203,33 @@ vec3 patternTwoToneStripe(vec2 uv, vec3 bodyCol, vec3 stripeCol, vec3 dorsalCol,
   return bodyCol;
 }
 
+// ── Pattern type 7: Neon tetra holo — simplified canonical tetra with a
+// rolling blue/green iridophore band and red rear lower body.
+vec3 patternNeonHolo(vec2 uv, vec3 bodyCol, vec3 stripeCol, vec3 stripeCol2,
+                     vec3 dorsalCol, vec3 bellyCol, vec3 redCol,
+                     float redStart, float redY,
+                     float stripeCenter, float stripeWidth,
+                     float shimmerScale, float shimmerAmp, float t) {
+  vec3 col = mix(dorsalCol, bellyCol, smoothstep(0.25, 0.82, uv.y));
+
+  float lower = smoothstep(redY, redY + 0.11, uv.y);
+  float rear = smoothstep(redStart, redStart + 0.14, uv.x);
+  float redMask = rear * lower;
+  col = mix(col, redCol, redMask * 0.95);
+
+  float wobble = noise2D(uv * shimmerScale + vec2(t * 0.06, -t * 0.035), 1.0) * 0.018;
+  float d = abs(uv.y - stripeCenter + wobble);
+  float band = smoothstep(stripeWidth * 1.35, stripeWidth * 0.22, d);
+  float roll = 0.5 + 0.5 * sin(uv.x * 18.0 - t * 2.4 + noise2D(uv * 5.0, 1.0) * 2.0);
+  vec3 stripe = mix(stripeCol, stripeCol2, roll);
+  stripe = mix(stripe, vec3(0.88, 1.0, 0.98), smoothstep(0.72, 1.0, roll) * shimmerAmp);
+  col = mix(col, stripe, band * 0.92);
+
+  float edgeGlow = smoothstep(stripeWidth * 1.45, stripeWidth * 0.95, d) * (1.0 - band);
+  col += stripeCol2 * edgeGlow * 0.18;
+  return col;
+}
+
 // ── Pattern type 6: Mottled (default/fallback) ──
 vec3 patternMottled(vec2 uv, vec3 bodyCol, float scale, float base, float range) {
   float mottle = base + fbm2D(uv, scale, 3) * range;
@@ -305,6 +332,11 @@ uniform float uBellyVBound;
 uniform float uStripeCenter;
 uniform float uStripeWidth;
 uniform vec3 uDorsalColor;
+uniform vec3 uSecondStripeColor;
+uniform vec3 uRedColor;
+uniform vec3 uBellyColor;
+uniform float uRedStart;
+uniform float uRedY;
 uniform float uShimmerScale;
 uniform float uShimmerAmp;
 
@@ -375,6 +407,12 @@ void main() {
     // Two-tone stripe
     baseColor = patternTwoToneStripe(uv, uBodyColor, uStripeColor, uDorsalColor,
       uStripeCenter, uStripeWidth, uShimmerScale, uShimmerAmp);
+  } else if (uPatternType == 7) {
+    // Neon tetra holo
+    baseColor = patternNeonHolo(uv, uBodyColor, uStripeColor, uSecondStripeColor,
+      uDorsalColor, uBellyColor, uRedColor,
+      uRedStart, uRedY,
+      uStripeCenter, uStripeWidth, uShimmerScale, uShimmerAmp, uTime);
   } else {
     // Mottled fallback
     baseColor = patternMottled(uv, uBodyColor, uMottleScale, uMottleBase, uMottleRange);
@@ -487,6 +525,7 @@ export function createFishMaterial(patternConfig, colors, layerParams = {}) {
     'contours': 3,
     'gradient_zones': 4, 'gradient_iridescent': 4,
     'two_tone_stripe': 5, 'two_tone_zones': 4,
+    'neon_tetra_holo': 7,
     'composite_scales': 2, 'composite_grid': 2, 'composite_radial': 2,
     'mottled': 6,
   };
@@ -572,6 +611,11 @@ export function createFishMaterial(patternConfig, colors, layerParams = {}) {
     uStripeCenter: { value: patternConfig.stripeCenter ?? 0.4 },
     uStripeWidth: { value: patternConfig.stripeWidth ?? 0.08 },
     uDorsalColor: { value: parseColor(patternConfig.dorsalColor || [40, 20, 30]) },
+    uSecondStripeColor: { value: parseColor(patternConfig.secondStripeColor || patternConfig.stripeColor || [0, 255, 200]) },
+    uRedColor: { value: parseColor(patternConfig.redColor || patternConfig.accentColor || colors.accent || [255, 30, 45]) },
+    uBellyColor: { value: parseColor(patternConfig.bellyColor || [120, 160, 170]) },
+    uRedStart: { value: patternConfig.redStart ?? 0.38 },
+    uRedY: { value: patternConfig.redY ?? 0.43 },
     uShimmerScale: { value: patternConfig.shimmer?.scale ?? 12 },
     uShimmerAmp: { value: patternConfig.shimmer?.amp ?? 0.04 },
 

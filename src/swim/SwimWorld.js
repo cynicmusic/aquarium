@@ -99,6 +99,7 @@ export class SwimWorld {
     this.fishCount    = opts.fishCount   ?? 8;
     this.fishCountBg  = opts.fishCountBg ?? 10;
     this.fishCountFg  = opts.fishCountFg ?? 10;
+    this.tetraCount   = opts.tetraCount  ?? 16;
 
     // Logical "plants" — for instanced presets each entry references a bucket
     // + plantIdx into that bucket; for non-instanceable presets (fractalFern,
@@ -235,6 +236,7 @@ export class SwimWorld {
 
   async _spawnFishPod() {
     await loadSpecies();
+    const all = availableSpecies();
 
     // NORMAL SQUAD — mid-distance side lanes (user's "primary pod")
     this._spawnSquad(this.fishCount, {
@@ -269,10 +271,24 @@ export class SwimWorld {
       ampX:    [1.8, 3.2], ampZ: [0.6, 1.6], ampY: [0.3, 0.8],
       freqX:   [0.20, 0.42], freqZ: [0.22, 0.45], freqY: [0.28, 0.52],
     });
+
+    // NEON HOLO TETRA SQUAD — 16 selected variants from a 32-card round.
+    // Smaller than the existing fish, tighter and more nimble, with exclusive
+    // rolling holo stripe shader settings carried by the species JSON.
+    const neon = all.filter(name => /^neonHoloTetra\d+$/.test(name));
+    this._spawnSquad(this.tetraCount, {
+      speciesList: neon.length ? neon : ['neonTetra'],
+      scaleMin: 0.52, scaleMax: 0.78,
+      x0Min:   -9, x0Max:   2,
+      zSide:   true, zMin: 0.8, zMax: 4.6,
+      yMin:    0.1, yMax: 2.6,
+      ampX:    [2.6, 5.4], ampZ: [1.2, 3.4], ampY: [0.45, 1.15],
+      freqX:   [0.42, 0.78], freqZ: [0.36, 0.74], freqY: [0.46, 0.86],
+    });
   }
 
   _spawnSquad(count, spec) {
-    const all = availableSpecies();
+    const all = spec.speciesList || availableSpecies();
     for (let i = 0; i < count; i++) {
       const species = all[Math.floor(Math.random() * all.length)];
       const scale = spec.scaleMin + Math.random() * (spec.scaleMax - spec.scaleMin);
@@ -335,6 +351,9 @@ export class SwimWorld {
       const y = cy + p.yBase + Math.sin(elapsed * p.freqY + p.phaseY) * p.ampY;
       f.mesh.position.set(x, y, z);
       f.tick(elapsed);
+      if (f.mesh.userData.species?.startsWith('neonHoloTetra')) {
+        f.mesh.rotation.z += Math.sin(elapsed * 1.7 + p.phaseZ) * 0.035;
+      }
     }
   }
 
@@ -458,6 +477,7 @@ export class SwimWorld {
       plantBuckets: this.plantBuckets.length,
       coralBuckets: this.coralBuckets.length,
       fishes: this.fishes.length,
+      tetras: this.fishes.filter(f => f.mesh.userData.species?.startsWith('neonHoloTetra')).length,
       crabs: this.crabSystem ? this.crabSystem.crabs.length : 0,
       lights: this.lights.length,
       fogColor: '#' + this.fogColor.toString(16).padStart(6, '0'),

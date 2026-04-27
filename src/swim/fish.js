@@ -63,12 +63,23 @@ export function createFish(type, opts = {}) {
     spots:              0.18, mottled:             0.10,
   };
   const iridMult = data.iridoMultiplier ?? PATTERN_IRID[patternType] ?? 0.25;
-  const material = createFishMaterial(data.pattern, data.colors, {
+  const spectralBias = (fish3d.root.uuid.charCodeAt(0) % 100) / 100;
+  const material = createFishMaterial(data.pattern, data.colors, data.neonHolo ? {
+    scaleSize:         58,
+    scaleOpacity:      0.06,
+    depthOpacity:      0.16,
+    iridIntensity:     0.12,
+    iridoIntensity:    iridMult,
+    iridoThickness:    6.4,
+    iridoMaskScale:    24,
+    iridoMaskOpacity:  0.32,
+    iridoSpectralBias: spectralBias,
+  } : {
     iridoIntensity:   iridMult,
     iridoThickness:   5.0,
     iridoMaskScale:   16,
     iridoMaskOpacity: 0.6,
-    iridoSpectralBias:(fish3d.root.uuid.charCodeAt(0) % 100) / 100,
+    iridoSpectralBias:spectralBias,
   });
   const bodyMesh = new THREE.Mesh(fish3d.bodyGeo, material);
   fish3d.root.add(bodyMesh);
