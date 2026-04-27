@@ -1047,6 +1047,35 @@ export function createCuttlefish(overrides = {}) {
   return group;
 }
 
+function _getUpdateCache(group) {
+  if (group.userData.updateCache) return group.userData.updateCache;
+  const cache = {
+    materials: [],
+    mantles: [],
+    sideFins: [],
+    arms: [],
+    tentacles: [],
+  };
+  const mats = new Set();
+  // Deep traverse — arms/tentacles/eyes now live under a headPivot group,
+  // so iterating only group.children would miss them.
+  group.traverse(child => {
+    if (child === group) return;
+    const mat = child.material;
+    if (mat && mat.uniforms && mat.uniforms.uTime && !mats.has(mat)) {
+      mats.add(mat);
+      cache.materials.push(mat);
+    }
+    const role = child.userData.role;
+    if (role === 'mantle') cache.mantles.push(child);
+    else if (role === 'sideFin') cache.sideFins.push(child);
+    else if (role === 'arm') cache.arms.push(child);
+    else if (role === 'tentacle') cache.tentacles.push(child);
+  });
+  group.userData.updateCache = cache;
+  return cache;
+}
+
 /**
  * Per-frame animation — call from the render loop.
  *   updateCuttlefish(group, elapsedSeconds)
@@ -1054,93 +1083,92 @@ export function createCuttlefish(overrides = {}) {
  * Animates: side fin ripple, arm micro-sway, tentacle shoot pulse.
  */
 export function updateCuttlefish(group, t) {
-  const pumpedMats = new Set();
-  // Deep traverse — arms/tentacles/eyes now live under a headPivot group,
-  // so iterating only group.children would miss them.
-  const allChildren = [];
-  group.traverse(c => { if (c !== group) allChildren.push(c); });
-  for (const child of allChildren) {
-    const mat = child.material;
-    if (mat && mat.uniforms && mat.uniforms.uTime && !pumpedMats.has(mat)) {
-      mat.uniforms.uTime.value = t;
-      pumpedMats.add(mat);
+  const cache = _getUpdateCache(group);
+
+  for (const mat of cache.materials) {
+    mat.uniforms.uTime.value = t;
+  }
+
+  for (const child of cache.mantles) {
+    // Subtle body undulation — low-amplitude travelling wave along the
+    // mantle length. Much softer than arms/tentacles (they whip; mantle
+    // just breathes).
+    const geo = child.geometry;
+    let rest = geo.getAttribute('rest');
+    if (!rest) {
+      rest = new THREE.BufferAttribute(new Float32Array(geo.attributes.position.array), 3);
+      geo.setAttribute('rest', rest);
     }
-    if (child.userData.role === 'mantle') {
-      // Subtle body undulation — low-amplitude travelling wave along the
-      // mantle length. Much softer than arms/tentacles (they whip; mantle
-      // just breathes).
-      const geo = child.geometry;
-      let rest = geo.getAttribute('rest');
-      if (!rest) {
-        rest = new THREE.BufferAttribute(new Float32Array(geo.attributes.position.array), 3);
-        geo.setAttribute('rest', rest);
-      }
-      const pos = geo.attributes.position;
-      const arr = pos.array;
-      const restArr = rest.array;
-      const bb = geo.boundingBox || geo.computeBoundingBox() || geo.boundingBox;
-      const xMin = bb ? bb.min.x : -1;
-      const xMax = bb ? bb.max.x : 1;
-      const span = Math.max(0.001, xMax - xMin);
-      for (let i = 0; i < pos.count; i++) {
-        const o = i * 3;
-        const rx = restArr[o], ry = restArr[o + 1], rz = restArr[o + 2];
-        // Normalised position along length (0 at nose, 1 at tail)
-        const u = (rx - xMin) / span;
-        const amp = u * u * 0.025;   // tail wobbles more, head is anchored
-        const wy = Math.sin(u * Math.PI * 2.2 - t * 1.4) * amp;
-        const wz = Math.cos(u * Math.PI * 2.2 - t * 1.4) * amp * 0.35;
-        arr[o] = rx;
-        arr[o + 1] = ry + wy;
-        arr[o + 2] = rz + wz;
-      }
-      pos.needsUpdate = true;
+    const pos = geo.attributes.position;
+    const arr = pos.array;
+    const restArr = rest.array;
+    const bb = geo.boundingBox || geo.computeBoundingBox() || geo.boundingBox;
+    const xMin = bb ? bb.min.x : -1;
+    const xMax = bb ? bb.max.x : 1;
+    const span = Math.max(0.001, xMax - xMin);
+    for (let i = 0; i < pos.count; i++) {
+      const o = i * 3;
+      const rx = restArr[o], ry = restArr[o + 1], rz = restArr[o + 2];
+      // Normalised position along length (0 at nose, 1 at tail)
+      const u = (rx - xMin) / span;
+      const amp = u * u * 0.025;   // tail wobbles more, head is anchored
+      const wy = Math.sin(u * Math.PI * 2.2 - t * 1.4) * amp;
+      const wz = Math.cos(u * Math.PI * 2.2 - t * 1.4) * amp * 0.35;
+      arr[o] = rx;
+      arr[o + 1] = ry + wy;
+      arr[o + 2] = rz + wz;
     }
-    if (child.userData.role === 'sideFin') {
-      const geo = child.geometry;
-      const rest = geo.getAttribute('rest');
-      const pos = geo.getAttribute('position');
-      const ripples = geo.userData.finRipples;
-      const amp = geo.userData.finRippleAmp;
-      const latAmp = geo.userData.finLateralAmp ?? 0.6;
-      const side = geo.userData.side;
-      const bb = geo.boundingBox || (geo.computeBoundingBox(), geo.boundingBox);
-      const xMin = bb ? bb.min.x : -1;
-      const xMax = bb ? bb.max.x : 1;
-      const span = Math.max(0.001, xMax - xMin);
-      // Rough inner-edge Z for computing outer-ness (how far from mantle body)
-      const zInnerApprox = geo.userData.zInnerApprox ?? 0.30;
-      const zOuterSpan   = geo.userData.zOuterSpan   ?? 0.20;
-      for (let i = 0; i < pos.count; i++) {
-        const rx = rest.getX(i), ry = rest.getY(i), rz = rest.getZ(i);
-        const v = (rx - xMin) / span;
-        const phase = v * Math.PI * 2 * ripples - t * 3.4;
-        const wave1 = Math.sin(phase + side * 0.4);
-        const wave2 = Math.sin(phase * 1.7 + 1.1 + side * 0.8);   // second harmonic
-        const dz = Math.abs(rz) - zInnerApprox;
-        const s = THREE.MathUtils.clamp(dz / zOuterSpan, 0, 1);
-        // Vertical ripple (primary) + lateral sway (secondary, out-of-phase)
-        const dispY = (wave1 * 0.85 + wave2 * 0.25) * amp * s;
-        const dispZ = wave2 * amp * s * latAmp * side;
-        pos.setY(i, ry + dispY);
-        pos.setZ(i, rz + dispZ);
-      }
-      pos.needsUpdate = true;
-    } else if (child.userData.role === 'arm') {
-      const idx = child.userData.index;
-      const phase = idx * 0.7;
-      // Each arm has its own slow "pose drift" — rotation around the root so
-      // the arm swings through different curl apparently without rebuilding.
-      child.rotation.z = Math.sin(t * 0.35 + phase) * 0.09;
-      child.rotation.x = Math.cos(t * 0.28 + phase * 0.6) * 0.07;
-      // Small per-arm yaw so the bundle isn't rigid
-      child.rotation.y = Math.sin(t * 0.22 + phase * 1.1) * 0.04;
-      _applyTubeWave(child, t, phase, 0.04, 3.0, 3);
-    } else if (child.userData.role === 'tentacle') {
-      const idx = child.userData.index;
-      const phase = idx * 1.3;
-      child.rotation.y = Math.sin(t * 0.5 + phase) * 0.06;
-      _applyTubeWave(child, t, phase, 0.07, 5.0, 4);
+    pos.needsUpdate = true;
+  }
+
+  for (const child of cache.sideFins) {
+    const geo = child.geometry;
+    const rest = geo.getAttribute('rest');
+    const pos = geo.getAttribute('position');
+    const ripples = geo.userData.finRipples;
+    const amp = geo.userData.finRippleAmp;
+    const latAmp = geo.userData.finLateralAmp ?? 0.6;
+    const side = geo.userData.side;
+    const bb = geo.boundingBox || (geo.computeBoundingBox(), geo.boundingBox);
+    const xMin = bb ? bb.min.x : -1;
+    const xMax = bb ? bb.max.x : 1;
+    const span = Math.max(0.001, xMax - xMin);
+    // Rough inner-edge Z for computing outer-ness (how far from mantle body)
+    const zInnerApprox = geo.userData.zInnerApprox ?? 0.30;
+    const zOuterSpan   = geo.userData.zOuterSpan   ?? 0.20;
+    for (let i = 0; i < pos.count; i++) {
+      const rx = rest.getX(i), ry = rest.getY(i), rz = rest.getZ(i);
+      const v = (rx - xMin) / span;
+      const phase = v * Math.PI * 2 * ripples - t * 3.4;
+      const wave1 = Math.sin(phase + side * 0.4);
+      const wave2 = Math.sin(phase * 1.7 + 1.1 + side * 0.8);   // second harmonic
+      const dz = Math.abs(rz) - zInnerApprox;
+      const s = THREE.MathUtils.clamp(dz / zOuterSpan, 0, 1);
+      // Vertical ripple (primary) + lateral sway (secondary, out-of-phase)
+      const dispY = (wave1 * 0.85 + wave2 * 0.25) * amp * s;
+      const dispZ = wave2 * amp * s * latAmp * side;
+      pos.setY(i, ry + dispY);
+      pos.setZ(i, rz + dispZ);
     }
+    pos.needsUpdate = true;
+  }
+
+  for (const child of cache.arms) {
+    const idx = child.userData.index;
+    const phase = idx * 0.7;
+    // Each arm has its own slow "pose drift" — rotation around the root so
+    // the arm swings through different curl apparently without rebuilding.
+    child.rotation.z = Math.sin(t * 0.35 + phase) * 0.09;
+    child.rotation.x = Math.cos(t * 0.28 + phase * 0.6) * 0.07;
+    // Small per-arm yaw so the bundle isn't rigid
+    child.rotation.y = Math.sin(t * 0.22 + phase * 1.1) * 0.04;
+    _applyTubeWave(child, t, phase, 0.04, 3.0, 3);
+  }
+
+  for (const child of cache.tentacles) {
+    const idx = child.userData.index;
+    const phase = idx * 1.3;
+    child.rotation.y = Math.sin(t * 0.5 + phase) * 0.06;
+    _applyTubeWave(child, t, phase, 0.07, 5.0, 4);
   }
 }
