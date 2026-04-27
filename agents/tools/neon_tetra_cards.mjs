@@ -82,8 +82,8 @@ function variant(i, round = 1) {
     secondStripeColor: hslToHex(stripe2Hue, 0.96, 0.58 + jitter(12) * 0.08),
     redColor: hslToHex(redHue, warm.sat, warm.light + jitter(13) * 0.055),
     warmFamily: warm.hue < 0.03 ? 'red' : warm.hue < 0.08 ? 'orange' : 'amber',
-    redStart: 0.24 + (i % 6) * 0.034 + jitter(22) * 0.018,
-    redY: 0.405 + ((i + 2) % 4) * 0.020 + jitter(23) * 0.014,
+    redStart: 0.18 + (i % 6) * 0.030 + jitter(22) * 0.016,
+    redY: 0.365 + ((i + 2) % 4) * 0.017 + jitter(23) * 0.012,
     dorsalColor: hslToHex(0.64 + jitter(14) * 0.04, 0.62, 0.16 + jitter(15) * 0.025),
     bellyColor: hslToHex(0.58 + jitter(16) * 0.05, 0.35, 0.50 + jitter(17) * 0.05),
     shimmerAmp: 0.36 + jitter(18) * 0.18,
@@ -180,16 +180,16 @@ function renderCard(ctx, v, tx, ty) {
   ctx.fillRect(tx, ty, TILE, TILE);
 
   // Canonical red lower rear half.
-  const redGrad = ctx.createLinearGradient(tx + TILE * 0.40, ty, tx + TILE * 0.92, ty);
+  const redGrad = ctx.createLinearGradient(tx + TILE * 0.32, ty, tx + TILE * 0.94, ty);
   redGrad.addColorStop(0, 'rgba(255,30,45,0.05)');
   redGrad.addColorStop(0.28, v.redColor);
   redGrad.addColorStop(1, '#b40f24');
   ctx.fillStyle = redGrad;
   ctx.beginPath();
   ctx.moveTo(tx + TILE * v.redStart, ty + TILE * v.redY);
-  ctx.bezierCurveTo(tx + TILE * 0.56, ty + TILE * (v.redY + 0.01), tx + TILE * 0.82, ty + TILE * (v.redY + 0.05), tx + TILE * 0.95, ty + TILE * (v.redY + 0.01));
-  ctx.lineTo(tx + TILE * 0.96, ty + TILE * 0.67);
-  ctx.bezierCurveTo(tx + TILE * 0.72, ty + TILE * 0.72, tx + TILE * 0.50, ty + TILE * 0.68, tx + TILE * (v.redStart - 0.04), ty + TILE * 0.58);
+  ctx.bezierCurveTo(tx + TILE * 0.52, ty + TILE * (v.redY + 0.006), tx + TILE * 0.82, ty + TILE * (v.redY + 0.052), tx + TILE * 0.96, ty + TILE * (v.redY + 0.010));
+  ctx.lineTo(tx + TILE * 0.97, ty + TILE * 0.69);
+  ctx.bezierCurveTo(tx + TILE * 0.70, ty + TILE * 0.74, tx + TILE * 0.44, ty + TILE * 0.69, tx + TILE * (v.redStart - 0.04), ty + TILE * 0.56);
   ctx.closePath();
   ctx.fill();
 
@@ -343,9 +343,9 @@ function makeSelectedSheet(selected, round) {
 
 function selectTop16(scores) {
   const selected = [];
-  const quotas = { red: 5, orange: 6, amber: 5 };
+  const quotas = { red: 7, orange: 5, amber: 4 };
   const used = new Set();
-  for (const family of ['orange', 'amber', 'red']) {
+  for (const family of ['red', 'orange', 'amber']) {
     for (const s of scores) {
       if (selected.length >= 16) break;
       if (used.has(s.id) || s.warmFamily !== family) continue;

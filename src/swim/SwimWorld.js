@@ -279,11 +279,11 @@ export class SwimWorld {
     this._spawnSquad(this.tetraCount, {
       speciesList: neon.length ? neon : ['neonTetra'],
       scaleMin: 0.52, scaleMax: 0.78,
-      x0Min:   -9, x0Max:   2,
-      zSide:   true, zMin: 0.8, zMax: 4.6,
-      yMin:    0.1, yMax: 2.6,
-      ampX:    [2.6, 5.4], ampZ: [1.2, 3.4], ampY: [0.45, 1.15],
-      freqX:   [0.42, 0.78], freqZ: [0.36, 0.74], freqY: [0.46, 0.86],
+      x0Min:   -10, x0Max:   0.8,
+      zSide:   true, zMin: 1.0, zMax: 4.8,
+      yMin:    0.1, yMax: 2.5,
+      ampX:    [2.0, 4.2], ampZ: [1.0, 2.8], ampY: [0.38, 0.95],
+      freqX:   [0.34, 0.62], freqZ: [0.30, 0.58], freqY: [0.38, 0.70],
     });
   }
 

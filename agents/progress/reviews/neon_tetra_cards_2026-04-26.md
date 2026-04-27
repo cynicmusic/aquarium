@@ -20,12 +20,15 @@ as a smaller nimble squad with an exclusive rolling holo stripe shader.
   readability, visible cyan/green/turquoise stripe variance, a warmer
   red/orange/amber rear-body spread, and enough shape variation to read as a
   squad instead of clones.
+- Round 8 responds to live review: more of the selected gang now carries larger,
+  more prominent red/hot rear stripes, while the swim lanes are slightly calmer
+  so wide cameras do not get such hot incoming passes.
 
 ## Shipped Set
 
-- Source card sheet: `examples/internal/neon_tetra_cards_v007.png`
-- Selected sheet: `examples/internal/neon_tetra_cards_v007_selected.png`
-- Scores: `examples/internal/neon_tetra_cards_v007.json`
+- Source card sheet: `examples/internal/neon_tetra_cards_v008.png`
+- Selected sheet: `examples/internal/neon_tetra_cards_v008_selected.png`
+- Scores: `examples/internal/neon_tetra_cards_v008.json`
 - Exported species: `public/fish/neonHoloTetra01.json` through
   `public/fish/neonHoloTetra16.json`
 - Pattern type: `neon_tetra_holo`

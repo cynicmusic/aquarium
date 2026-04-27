@@ -212,10 +212,10 @@ vec3 patternNeonHolo(vec2 uv, vec3 bodyCol, vec3 stripeCol, vec3 stripeCol2,
                      float shimmerScale, float shimmerAmp, float t) {
   vec3 col = mix(dorsalCol, bellyCol, smoothstep(0.25, 0.82, uv.y));
 
-  float lower = smoothstep(redY, redY + 0.11, uv.y);
-  float rear = smoothstep(redStart, redStart + 0.14, uv.x);
+  float lower = smoothstep(redY, redY + 0.085, uv.y);
+  float rear = smoothstep(redStart, redStart + 0.115, uv.x);
   float redMask = rear * lower;
-  col = mix(col, redCol, redMask * 0.95);
+  col = mix(col, redCol, redMask);
 
   float wobble = noise2D(uv * shimmerScale + vec2(t * 0.06, -t * 0.035), 1.0) * 0.018;
   float d = abs(uv.y - stripeCenter + wobble);
