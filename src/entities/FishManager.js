@@ -47,20 +47,33 @@ export class FishManager {
     await ensureSpeciesLoaded();
     this._ready = true;
 
-    // Spawn a nice variety of all 32 species
+    // Spawn a nice variety of species. Holo tetra get their own small squad
+    // below; keeping them out of the generic pass prevents them from becoming
+    // full-size "one of everything" fish.
     const all = [..._speciesData.keys()];
     // Schooling fish get multiples
     const schooling = ['neonTetra', 'cardinalTetra', 'clownfish'];
     for (const type of schooling) {
       for (let i = 0; i < 4; i++) this.addFish(type);
     }
+    const holoTetra = all.filter(type => /^neonHoloTetra\d+$/.test(type));
+    for (const type of holoTetra) {
+      this.addFish(type, {
+        scaleMin: 1.1,
+        scaleMax: 1.7,
+        speedMin: 0.75,
+        speedMax: 1.25,
+        yJitter: 0.9,
+        zSpread: 0.22,
+      });
+    }
     // One of everything else
     for (const type of all) {
-      if (!schooling.includes(type)) this.addFish(type);
+      if (!schooling.includes(type) && !/^neonHoloTetra\d+$/.test(type)) this.addFish(type);
     }
   }
 
-  addFish(type) {
+  addFish(type, opts = {}) {
     // Remap old names
     type = NAME_MAP[type] || type;
     const data = _speciesData?.get(type);
@@ -88,18 +101,31 @@ export class FishManager {
       mottled:           0.10,   // shy bottom-dweller
     };
     const iridMult = data.iridoMultiplier ?? PATTERN_IRID[patternType] ?? 0.25;
-    const material = createFishMaterial(data.pattern, data.colors, {
+    const spectralBias = (fish3d.root.uuid.charCodeAt(0) % 100) / 100;
+    const material = createFishMaterial(data.pattern, data.colors, data.neonHolo ? {
+      scaleSize:         58,
+      scaleOpacity:      0.06,
+      depthOpacity:      0.16,
+      iridIntensity:     0.12,
+      iridoIntensity:    iridMult,
+      iridoThickness:    6.4,
+      iridoMaskScale:    24,
+      iridoMaskOpacity:  0.32,
+      iridoSpectralBias: spectralBias,
+    } : {
       iridoIntensity:   iridMult,
       iridoThickness:   5.0,
       iridoMaskScale:   16,
       iridoMaskOpacity: 0.6,
-      iridoSpectralBias:(fish3d.root.uuid.charCodeAt(0) % 100) / 100,  // species-unique bias
+      iridoSpectralBias:spectralBias,  // species-unique bias
     });
     const bodyMesh = new THREE.Mesh(fish3d.bodyGeo, material);
     fish3d.root.add(bodyMesh);
 
     const mesh = fish3d.root;
-    const scale = 2.5 + Math.random() * 1.5;
+    const scaleMin = opts.scaleMin ?? 2.5;
+    const scaleMax = opts.scaleMax ?? 4.0;
+    const scale = scaleMin + Math.random() * (scaleMax - scaleMin);
     mesh.scale.setScalar(scale);
 
     const { tankWidth, tankDepth, tankHeight } = this.aquariumScene.params;
@@ -109,12 +135,12 @@ export class FishManager {
     const fishIndex = this.fishes.length;
     const totalExpected = 30; // approximate total fish count
     const ySlot = (fishIndex / totalExpected) * (tankHeight - 1) + 0.5;
-    const personalY = ySlot + (Math.random() - 0.5) * 1.5;
+    const personalY = ySlot + (Math.random() - 0.5) * (opts.yJitter ?? 1.5);
     const y = Math.max(0.5, Math.min(tankHeight - 0.5, personalY));
 
     // Spread initial X positions across the tank
     const x = (Math.random() - 0.5) * tankWidth * 0.9;
-    const z = (Math.random() - 0.5) * tankDepth * 0.3;
+    const z = (Math.random() - 0.5) * tankDepth * (opts.zSpread ?? 0.3);
     mesh.position.set(x, y, z);
 
     // Side profile: fish body lies in XY plane, camera looks along -Z
@@ -135,7 +161,9 @@ export class FishManager {
     // Speed variety — some fish are slow drifters, some are fast
     const speedClass = Math.random();
     let speed;
-    if (speedClass < 0.3) speed = 0.3 + Math.random() * 0.3; // slow
+    if (opts.speedMin != null && opts.speedMax != null) {
+      speed = opts.speedMin + Math.random() * (opts.speedMax - opts.speedMin);
+    } else if (speedClass < 0.3) speed = 0.3 + Math.random() * 0.3; // slow
     else if (speedClass < 0.7) speed = 0.6 + Math.random() * 0.4; // medium
     else speed = 1.0 + Math.random() * 0.5; // fast
 

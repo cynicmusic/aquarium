@@ -100,14 +100,17 @@ export class LightingSystem {
   constructor(aquariumScene) {
     this.scene = aquariumScene;
     this.lights = [];
+    this.accentLights = [];
     this.volumetrics = [];
     this.params = {
       ambientIntensity: 0.25,
       beamCount: 5,
+      accentCount: 4,
       hueRange: { min: 220, max: 300 }, // purple-blue-red range
     };
 
     this._createAmbient();
+    this._createAccentLights();
     this._generateBeams();
   }
 
@@ -141,6 +144,24 @@ export class LightingSystem {
     this.frontLight = new THREE.DirectionalLight(0x99bbdd, 0.6);
     this.frontLight.position.set(0, 4, 15);
     this.scene.scene.add(this.frontLight);
+  }
+
+  _createAccentLights() {
+    const colors = [0x55ddff, 0xff4f98, 0xffb84d, 0x6cffd0];
+    const { tankWidth, tankHeight, tankDepth } = this.scene.params;
+    for (let i = 0; i < this.params.accentCount; i++) {
+      const light = new THREE.PointLight(colors[i % colors.length], 1.4, 12, 1.5);
+      const t = i / Math.max(1, this.params.accentCount - 1);
+      light.position.set(
+        (t - 0.5) * tankWidth * 0.85,
+        tankHeight * (0.35 + 0.35 * ((i + 1) % 2)),
+        (i % 2 ? -1 : 1) * tankDepth * 0.34,
+      );
+      light.userData.base = light.position.clone();
+      light.userData.phase = i * 1.73;
+      this.scene.scene.add(light);
+      this.accentLights.push(light);
+    }
   }
 
   _generateBeams() {
@@ -209,6 +230,14 @@ export class LightingSystem {
     this.volumetrics.forEach(v => {
       v.material.uniforms.uTime.value = elapsed;
     });
+    for (const light of this.accentLights) {
+      const base = light.userData.base;
+      const phase = light.userData.phase;
+      light.position.x = base.x + Math.sin(elapsed * 0.18 + phase) * 1.4;
+      light.position.y = base.y + Math.sin(elapsed * 0.23 + phase * 1.9) * 0.6;
+      light.position.z = base.z + Math.cos(elapsed * 0.16 + phase) * 0.8;
+      light.intensity = 1.05 + Math.sin(elapsed * 0.31 + phase) * 0.35;
+    }
   }
 
   getDebugInfo() {
@@ -216,6 +245,7 @@ export class LightingSystem {
       name: 'Lighting',
       params: {
         beams: this.lights.length,
+        accents: this.accentLights.length,
         ambient: this.params.ambientIntensity.toFixed(3),
         hueRange: `${this.params.hueRange.min}-${this.params.hueRange.max}`,
       },

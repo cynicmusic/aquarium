@@ -203,7 +203,9 @@ export class CuttlefishDesigner {
   }
 
   activate() {
-    this._createPreview();
+    // The regular aquarium tank should not contain a cuttlefish. Cuttlefish
+    // work now lives in the dedicated cuttlefish preview/workshop pages.
+    if (this.previewGroup) this.deactivate();
   }
 
   deactivate() {
@@ -246,6 +248,9 @@ export class CuttlefishDesigner {
 
   _createPreview() {
     if (this.previewGroup) this.scene.scene.remove(this.previewGroup);
+    // Keep this designer from injecting a cuttlefish into the live aquarium.
+    // The controls are preserved for now, but the tank remains fish-only.
+    return;
 
     // Cuttlefish body — elongated ellipsoid with tentacles suggested
     const bodyGeo = new THREE.SphereGeometry(1, 32, 24);
