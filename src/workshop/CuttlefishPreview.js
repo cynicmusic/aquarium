@@ -98,7 +98,7 @@ const CONTROLS = {
 
 const view = document.getElementById('view');
 const isTouch = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
-const renderer = new THREE.WebGLRenderer({ antialias: !isTouch });
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
 const maxPixelRatio = isTouch ? 1 : 2;
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, maxPixelRatio));
 renderer.setSize(view.clientWidth, view.clientHeight);
@@ -285,6 +285,14 @@ const floorMat = new THREE.ShaderMaterial({
       float caus = clamp(c + c2, 0.0, 3.0);
       vec3 col = sand + uCaust * caus * 0.35;
 
+      // Old-aquarium-style wet sand glints: cheap Blinn specular on the
+      // displaced normal, boosted by caustic bands so the floor catches light
+      // instead of reading fully matte.
+      vec3 V = normalize(cameraPosition - vWorldPos);
+      vec3 H = normalize(L + V);
+      float spec = pow(max(dot(normalize(vNormal), H), 0.0), 42.0);
+      col += uCaust * spec * (0.10 + caus * 0.12);
+
       // Distance fade into the purple fog bank
       float dist = length(vWorldPos - uCamPos);
       float fog = smoothstep(12.0, 45.0, dist);
@@ -294,10 +302,8 @@ const floorMat = new THREE.ShaderMaterial({
     }
   `,
 });
-// Desktop keeps the dense sculpted floor. Touch devices get a lighter grid:
-// same shader/look family, far fewer vertex-noise evaluations per frame.
 // Rotation is baked into the geometry so vertex shader can displace in local y.
-const _floorSegs = FEATURE_SCULPTED_FLOOR ? (isTouch ? 48 : 160) : 1;
+const _floorSegs = FEATURE_SCULPTED_FLOOR ? 160 : 1;
 const _floorGeo = new THREE.PlaneGeometry(80, 80, _floorSegs, _floorSegs);
 _floorGeo.rotateX(-Math.PI / 2);
 const floor = new THREE.Mesh(_floorGeo, floorMat);

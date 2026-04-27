@@ -87,7 +87,7 @@ void main() {
   float fogT = smoothstep(uFogNear, uFogFar, dist);
   col = mix(col, uFogColor, fogT);
 
-  gl_FragColor = vec4(col, 0.95);
+  gl_FragColor = vec4(col, 1.0);
 }
 `;
 
@@ -399,7 +399,9 @@ function _getOrCreateMaterial(presetName, preset, fog) {
       uFogFar:       { value: fog.far },
     },
     side: THREE.DoubleSide,
-    transparent: true,
+    transparent: false,
+    depthWrite: true,
+    depthTest: true,
   });
   _matCache.set(presetName, mat);
   return mat;
@@ -506,6 +508,7 @@ export function createPlantBucket(typeName, positions, fog) {
   const totalInstances = plantCount * bladeCount;
 
   const instMesh = new THREE.InstancedMesh(geo, mat, totalInstances);
+  instMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   // Recycler moves instances around — frustum-cull bbox is invalidated by
   // matrix updates. Disable per-instance culling; the InstancedMesh is one
   // draw call regardless.

@@ -230,6 +230,7 @@ export function createCoralBucket(typeName, positions) {
 
   const count = positions.length;
   const instMesh = new THREE.InstancedMesh(geo, mat, count);
+  instMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   instMesh.frustumCulled = false;
 
   // Per-instance state — matches the userData on old createCoral() Mesh.

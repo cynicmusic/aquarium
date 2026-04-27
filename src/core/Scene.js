@@ -21,7 +21,7 @@ export class AquariumScene {
 
     // Renderer — wrap in try/catch for WebGL context failures
     try {
-      this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+      this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
     } catch (e) {
       // Fallback: try without antialias
       try {
