@@ -285,34 +285,25 @@ const floorMat = new THREE.ShaderMaterial({
       return v;
     }
 
-    vec2 hash22(vec2 p) {
-      vec3 p3 = fract(vec3(p.xyx) * vec3(0.1031, 0.1030, 0.0973));
-      p3 += dot(p3, p3.yzx + 33.33);
-      return fract((p3.xx + p3.yz) * p3.zy);
-    }
-    float voronoiDist(vec2 p, float t, float offset) {
-      vec2 n = floor(p);
-      vec2 f = fract(p);
-      float md = 8.0;
-      float md2 = 8.0;
-      for (int j = -1; j <= 1; j++) {
-        for (int i = -1; i <= 1; i++) {
-          vec2 g = vec2(float(i), float(j));
-          vec2 o = hash22(n + g);
-          o = 0.5 + 0.5 * sin(t * 0.6 + offset + 6.2831 * o);
-          vec2 r = g + o - f;
-          float d = dot(r, r);
-          if (d < md) { md2 = md; md = d; }
-          else if (d < md2) { md2 = d; }
-        }
-      }
-      return md2 - md;
+    float causticRidge(float a, float sharpness) {
+      float s = 1.0 - abs(sin(a));
+      return pow(max(s, 0.0), sharpness);
     }
     float caustic(vec2 uv, float t) {
-      float c1 = voronoiDist(uv * 3.0, t, 0.0);
-      float c2 = voronoiDist(uv * 4.2 + vec2(3.7, 1.2), t, 2.5);
-      float combined = c1 * c2 * 4.0;
-      return pow(max(combined, 0.0), 0.8);
+      vec2 p = uv * 1.45;
+      float n1 = fbm2(p * 0.22 + vec2(t * 0.020, -t * 0.014)) - 0.5;
+      float n2 = vn(p * 0.31 + vec2(-t * 0.025, t * 0.018)) - 0.5;
+      p += vec2(n1 * 1.10 + n2 * 0.45, n2 * 0.95 - n1 * 0.35);
+
+      float a = causticRidge(p.x * 1.10 + p.y * 0.34 + t * 0.32, 7.5);
+      float b = causticRidge(p.x * -0.46 + p.y * 1.18 - t * 0.40 + 1.7, 6.2);
+      float c = causticRidge(p.x * 0.76 - p.y * 0.80 + t * 0.24 + 4.2, 5.3);
+      float filaments = max(a, b) * 0.48 + c * 0.22 + a * b * 0.50;
+      float blobA = smoothstep(0.40, 0.76, fbm2(p * 0.14 + vec2(t * 0.026, -t * 0.020)));
+      float blobB = smoothstep(0.42, 0.72, vn(p * 0.24 + vec2(-6.3, 4.1)));
+      float blobs = (blobA * 0.65 + blobB * 0.35) * (0.70 + filaments * 0.45);
+      float glimmer = smoothstep(0.56, 0.92, filaments) * 0.42;
+      return clamp(filaments * 0.82 + blobs * 0.46 + glimmer, 0.0, 1.6);
     }
 
     void main() {
@@ -329,23 +320,17 @@ const floorMat = new THREE.ShaderMaterial({
       float diff = max(dot(vNormal, L), 0.0) * 0.35 + 0.75;
       sand *= diff;
 
-      // Old aquarium caustic family, now folded into the floor material.
+      // Sheet-tuned ocean-floor caustics: continuous refracted filaments plus
+      // tiny crossing glints, with one cheap evaluation per fragment.
       vec2 cuv = wp * 0.25;
-      float caus = clamp(caustic(cuv, uTime) * 1.35, 0.0, 2.0);
-      vec3 col = sand + uCaust * caus * 0.18;
+      float caus = caustic(cuv, uTime);
+      vec3 col = sand + uCaust * caus * 0.24;
 
-      // Caustic "bump map": perturb the shading normal from the caustic field
-      // itself, so bright ripples also create small glancing highlights.
-      float epsC = 0.12;
-      float cL = caustic(cuv + vec2(-epsC, 0.0), uTime);
-      float cR = caustic(cuv + vec2( epsC, 0.0), uTime);
-      float cD = caustic(cuv + vec2(0.0, -epsC), uTime);
-      float cU = caustic(cuv + vec2(0.0,  epsC), uTime);
-      vec3 causticN = normalize(normalize(vNormal) + vec3(cL - cR, 0.0, cD - cU) * 0.12);
       vec3 V = normalize(cameraPosition - vWorldPos);
       vec3 H = normalize(L + V);
-      float spec = pow(max(dot(causticN, H), 0.0), 42.0);
-      col += uCaust * spec * (0.07 + caus * 0.07);
+      float spec = pow(max(dot(normalize(vNormal), H), 0.0), 36.0);
+      float glean = smoothstep(0.58, 1.05, caus);
+      col += uCaust * spec * (0.06 + glean * 0.16);
 
       // Distance fade into the purple fog bank
       float dist = length(vWorldPos - uCamPos);
