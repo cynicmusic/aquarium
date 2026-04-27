@@ -15,6 +15,8 @@ Generated 32-tile sheets with the repo's established variant workflow:
 - `examples/internal/ocean_floor_sheet_v002.png`
 - `examples/internal/ocean_floor_sheet_v003.png`
 - `examples/internal/ocean_floor_sheet_v004.png`
+- `examples/internal/ocean_floor_sheet_v005.png`
+- `examples/internal/ocean_floor_sheet_v006.png`
 - score JSON beside each sheet
 
 The score penalizes dim output, neon/hot coverage, busy edge noise, large
@@ -48,7 +50,12 @@ sharpness near R8, glint around G0.36-G0.50.
 User note: the caustics needed more blobs. Round 3 added a broad lens term but
 it was too subtle. Round 4 raised the blob amount and lowered the blob gates:
 large soft patches now sit under the filaments, while crossings still provide
-the small glints. The production shader ports this v004 blend.
+the small glints.
+
+Round 5 added explicit bump/lens interaction, but became too dim. Round 6 is
+the current production direction: it keeps the bump-field warping/lensing from
+round 5, restores line/glimmer brightness, and shifts the production caustic
+color colder and bluer.
 
 ## Port Notes
 

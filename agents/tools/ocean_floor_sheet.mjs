@@ -58,7 +58,8 @@ function add(label, p) {
     speed: 0.55,
     width: 8,
     cross: 0.45,
-    blob: 0.46,
+    blob: 0.40,
+    bump: 0.36,
     grain: 0.10,
     glint: 0.35,
     hue: 0.0,
@@ -74,19 +75,22 @@ for (const glint of [0.0, 0.12, 0.24, 0.36, 0.50, 0.68, 0.86, 1.1]) add(`G${glin
 function causticAt(p, u, v, t) {
   const x = (u - 0.5) * 12 * p.scale;
   const y = (v - 0.5) * 8 * p.scale;
-  const n = fbm(x * 0.22 + t * 0.08, y * 0.25 - t * 0.06, 3) - 0.5;
-  const wx = x + n * p.warp * 3.0;
-  const wy = y + (fbm(x * 0.18 - 8.1, y * 0.2 + 3.7, 3) - 0.5) * p.warp * 2.6;
+  const bump = fbm(x * 0.11 - 2.5, y * 0.13 + 4.2, 4);
+  const bump2 = fbm(x * 0.18 + 6.1, y * 0.16 - 3.4, 3);
+  const lens = smoothstep(0.34, 0.82, bump) * 0.72 + smoothstep(0.50, 0.88, bump2) * 0.34;
+  const n = fbm(x * 0.22 + t * 0.08 + bump * 1.4, y * 0.25 - t * 0.06, 3) - 0.5;
+  const wx = x + n * p.warp * 3.0 + (bump - 0.5) * p.bump * 3.2;
+  const wy = y + (fbm(x * 0.18 - 8.1, y * 0.2 + 3.7 + bump2, 3) - 0.5) * p.warp * 2.6 + (bump2 - 0.5) * p.bump * 2.4;
 
-  const a = waveRidge(wx * 1.10 + wy * 0.34 + t * (0.70 * p.speed), p.width);
-  const b = waveRidge(wx * -0.46 + wy * 1.18 - t * (0.88 * p.speed) + 1.7, p.width * 0.82);
-  const c = waveRidge(wx * 0.76 - wy * 0.80 + t * (0.52 * p.speed) + 4.2, p.width * 0.70);
-  const filaments = Math.max(a, b) * 0.48 + c * 0.26 + (a * b) * (0.42 + p.cross * 0.20);
+  const a = waveRidge(wx * 0.92 + wy * 0.52 + t * (0.70 * p.speed), p.width * 0.78);
+  const b = waveRidge(wx * -0.34 + wy * 0.96 - t * (0.88 * p.speed) + 1.7, p.width * 0.68);
+  const c = waveRidge(wx * 0.58 - wy * 0.72 + t * (0.52 * p.speed) + 4.2, p.width * 0.56);
+  const filaments = Math.max(a, b) * 0.38 + c * 0.22 + (a * b) * (0.36 + p.cross * 0.16);
   const blobA = smoothstep(0.40, 0.76, fbm(wx * 0.13 + t * 0.026, wy * 0.15 - t * 0.020, 3));
   const blobB = smoothstep(0.42, 0.72, vnoise(wx * 0.24 - 6.3, wy * 0.22 + 4.1));
   const blobs = (blobA * 0.65 + blobB * 0.35) * (0.70 + filaments * 0.45);
   const glimmer = smoothstep(0.58, 0.92, filaments) * p.glint;
-  return clamp(filaments * 0.82 + blobs * p.blob + glimmer);
+  return clamp((filaments * 0.78 + blobs * p.blob) * (0.86 + lens * p.bump) + glimmer * 1.18);
 }
 
 function renderTile(ctx, tx, ty, p, index) {

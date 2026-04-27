@@ -184,7 +184,7 @@ const floorMat = new THREE.ShaderMaterial({
     uTime:         { value: 0 },
     uSand:         { value: new THREE.Color(0.28, 0.24, 0.18) },
     uDeep:         { value: new THREE.Color(0.10, 0.04, 0.18) },   // purple fog
-    uCaust:        { value: new THREE.Color(0.90, 0.95, 1.20) },
+    uCaust:        { value: new THREE.Color(0.62, 0.92, 1.45) },
     uCamPos:       { value: new THREE.Vector3() },
     uSculptAmount: { value: FEATURE_SCULPTED_FLOOR ? 1.0 : 0.0 },
   },
@@ -291,19 +291,25 @@ const floorMat = new THREE.ShaderMaterial({
     }
     float caustic(vec2 uv, float t) {
       vec2 p = uv * 1.45;
-      float n1 = fbm2(p * 0.22 + vec2(t * 0.020, -t * 0.014)) - 0.5;
-      float n2 = vn(p * 0.31 + vec2(-t * 0.025, t * 0.018)) - 0.5;
-      p += vec2(n1 * 1.10 + n2 * 0.45, n2 * 0.95 - n1 * 0.35);
+      float bump = fbm2(p * 0.12 + vec2(-2.5, 4.2));
+      float bump2 = vn(p * 0.17 + vec2(6.1, -3.4));
+      float lens = smoothstep(0.34, 0.82, bump) * 0.72 + smoothstep(0.50, 0.88, bump2) * 0.34;
+      float n1 = fbm2(p * 0.22 + vec2(t * 0.020 + bump * 1.4, -t * 0.014)) - 0.5;
+      float n2 = vn(p * 0.31 + vec2(-t * 0.025, t * 0.018 + bump2)) - 0.5;
+      p += vec2(
+        n1 * 1.10 + n2 * 0.45 + (bump - 0.5) * 1.15,
+        n2 * 0.95 - n1 * 0.35 + (bump2 - 0.5) * 0.86
+      );
 
-      float a = causticRidge(p.x * 1.10 + p.y * 0.34 + t * 0.32, 7.5);
-      float b = causticRidge(p.x * -0.46 + p.y * 1.18 - t * 0.40 + 1.7, 6.2);
-      float c = causticRidge(p.x * 0.76 - p.y * 0.80 + t * 0.24 + 4.2, 5.3);
-      float filaments = max(a, b) * 0.48 + c * 0.22 + a * b * 0.50;
+      float a = causticRidge(p.x * 0.92 + p.y * 0.52 + t * 0.32, 5.8);
+      float b = causticRidge(p.x * -0.34 + p.y * 0.96 - t * 0.40 + 1.7, 5.1);
+      float c = causticRidge(p.x * 0.58 - p.y * 0.72 + t * 0.24 + 4.2, 4.2);
+      float filaments = max(a, b) * 0.38 + c * 0.22 + a * b * 0.43;
       float blobA = smoothstep(0.40, 0.76, fbm2(p * 0.14 + vec2(t * 0.026, -t * 0.020)));
       float blobB = smoothstep(0.42, 0.72, vn(p * 0.24 + vec2(-6.3, 4.1)));
       float blobs = (blobA * 0.65 + blobB * 0.35) * (0.70 + filaments * 0.45);
       float glimmer = smoothstep(0.56, 0.92, filaments) * 0.42;
-      return clamp(filaments * 0.82 + blobs * 0.46 + glimmer, 0.0, 1.6);
+      return clamp((filaments * 0.78 + blobs * 0.40) * (0.86 + lens * 0.36) + glimmer * 1.18, 0.0, 1.6);
     }
 
     void main() {
