@@ -9,9 +9,9 @@ Required `.env` keys:
 ```sh
 DREAMHOST_USER=claudeaquarium
 DREAMHOST_PASSWORD=...
-DREAMHOST_HOST=claudeaquarium.com
-DREAMHOST_REMOTE_ROOT=claudeaquarium.com
-DREAMHOST_URL=https://claudeaquarium.com/
+DREAMHOST_HOST=aquarium.relaxmoods.com
+DREAMHOST_REMOTE_ROOT=aquarium.relaxmoods.com
+DREAMHOST_URL=https://aquarium.relaxmoods.com/
 DREAMHOST_SSH_KEY="$HOME/.ssh/dreamhost_claudeaquarium_ed25519"
 ```
 
@@ -30,4 +30,4 @@ Publish commands:
 
 `publish-aquarium.sh` updates the root aquarium and does not delete the remote root, so `/cuttlefish/` remains intact. `publish-cuttlefish.sh` updates `/cuttlefish/` with `--delete` inside that subdirectory only.
 
-If DNS has not propagated, update `DREAMHOST_HOST` to the server hostname from DreamHost panel. Do not guess and do not retry password login attempts.
+If `aquarium.relaxmoods.com` DNS has not propagated, `DREAMHOST_HOST=relaxmoods.com` is the preferred fallback while keeping `DREAMHOST_REMOTE_ROOT=aquarium.relaxmoods.com` and `DREAMHOST_URL=https://aquarium.relaxmoods.com/`. Do not retry password login attempts.

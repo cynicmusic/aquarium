@@ -50,7 +50,7 @@ cp -R dist/assets "$DEPLOY/assets"
 cp -R dist/fish   "$DEPLOY/fish"
 
 echo "→ rsync → $DREAMHOST_USER@$DREAMHOST_HOST:~/$REMOTE_DIR/"
-rsync -az --delete --no-perms -e "ssh ${SSH_OPTS[*]}" "$DEPLOY/" \
+rsync -az --delete --no-perms --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r -e "ssh ${SSH_OPTS[*]}" "$DEPLOY/" \
   "$DREAMHOST_USER@$DREAMHOST_HOST:~/$REMOTE_DIR/"
 
 echo "→ verify"
