@@ -28,59 +28,6 @@ const NAME_MAP = {
   guppy: 'neonTetra',
 };
 
-function hashString(s) {
-  let h = 2166136261;
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return (h >>> 0) / 4294967295;
-}
-
-function holoParams(type, data, fish3d, iridMult) {
-  const seed = hashString(type + fish3d.root.uuid);
-  const family = Math.floor(seed * 5);
-  const bias = (seed * 1.73) % 1;
-  const base = data.neonHolo ? {
-    scaleSize: 58,
-    scaleOpacity: 0.06,
-    depthOpacity: 0.16,
-    iridIntensity: 0.12,
-    iridoIntensity: iridMult,
-    iridoThickness: 6.4,
-    iridoMaskScale: 24,
-    iridoMaskOpacity: 0.32,
-    iridoSpectralBias: bias,
-    holoSweepIntensity: 0.95,
-    holoSweepScale: 42,
-    holoSweepSpeed: 1.55,
-    holoSweepColor1: 0x72fff1,
-    holoSweepColor2: 0xff4fb0,
-  } : {
-    scaleSize: 34 + family * 8 + seed * 10,
-    scaleOpacity: 0.12 + seed * 0.12,
-    scaleContrast: 0.22 + seed * 0.24,
-    depthOpacity: 0.13 + seed * 0.18,
-    depthBlendMode: seed > 0.58 ? 1 : 0,
-    depthNoiseOffset: 2.0 + seed * 6.5,
-    depthFreqScale: 0.52 + seed * 0.48,
-    iridIntensity: 0.11 + seed * 0.22,
-    iridoIntensity: Math.min(1.15, Math.max(0.38, iridMult * (1.85 + family * 0.28))),
-    iridoThickness: 3.5 + family * 0.8 + seed * 1.7,
-    iridoMaskScale: 10 + family * 4 + seed * 10,
-    iridoMaskOpacity: 0.18 + (family % 3) * 0.18,
-    iridoSpectralBias: bias,
-    iridColor1: [0x33d9ff, 0xff55c8, 0x6cffd0, 0xffc35a, 0x8f7cff][family],
-    iridColor2: [0xff4fa8, 0x5efcff, 0xffda64, 0x7b62ff, 0x38ffd1][family],
-    holoSweepIntensity: 0.62 + seed * 0.58,
-    holoSweepScale: 28 + family * 8 + seed * 16,
-    holoSweepSpeed: 0.85 + seed * 1.15,
-    holoSweepColor1: [0x38f8ff, 0xff58c8, 0x67ffd6, 0xffc85a, 0x9a75ff][family],
-    holoSweepColor2: [0xff64bd, 0x76fff1, 0xffe168, 0x7c65ff, 0x30ffd0][family],
-  };
-  return base;
-}
-
 /**
  * Fish pace left-right across the full screen width, always showing side profiles.
  * Each fish has its own vertical lane so they spread across the view.
@@ -91,7 +38,7 @@ export class FishManager {
     this.aquariumScene = aquariumScene;
     this.fishes = [];
     this.schools = new Map();
-    this.debugLabels = false;
+    this.debugLabels = true;
     this._ready = false;
     this._spawnDefaults();
   }
@@ -100,33 +47,20 @@ export class FishManager {
     await ensureSpeciesLoaded();
     this._ready = true;
 
-    // Spawn a nice variety of species. Holo tetra get their own small squad
-    // below; keeping them out of the generic pass prevents them from becoming
-    // full-size "one of everything" fish.
+    // Spawn a nice variety of all 32 species
     const all = [..._speciesData.keys()];
     // Schooling fish get multiples
     const schooling = ['neonTetra', 'cardinalTetra', 'clownfish'];
     for (const type of schooling) {
       for (let i = 0; i < 4; i++) this.addFish(type);
     }
-    const holoTetra = all.filter(type => /^neonHoloTetra\d+$/.test(type));
-    for (const type of holoTetra) {
-      this.addFish(type, {
-        scaleMin: 1.1,
-        scaleMax: 1.7,
-        speedMin: 0.75,
-        speedMax: 1.25,
-        yJitter: 0.9,
-        zSpread: 0.22,
-      });
-    }
     // One of everything else
     for (const type of all) {
-      if (!schooling.includes(type) && !/^neonHoloTetra\d+$/.test(type)) this.addFish(type);
+      if (!schooling.includes(type)) this.addFish(type);
     }
   }
 
-  addFish(type, opts = {}) {
+  addFish(type) {
     // Remap old names
     type = NAME_MAP[type] || type;
     const data = _speciesData?.get(type);
@@ -154,14 +88,18 @@ export class FishManager {
       mottled:           0.10,   // shy bottom-dweller
     };
     const iridMult = data.iridoMultiplier ?? PATTERN_IRID[patternType] ?? 0.25;
-    const material = createFishMaterial(data.pattern, data.colors, holoParams(type, data, fish3d, iridMult));
+    const material = createFishMaterial(data.pattern, data.colors, {
+      iridoIntensity:   iridMult,
+      iridoThickness:   5.0,
+      iridoMaskScale:   16,
+      iridoMaskOpacity: 0.6,
+      iridoSpectralBias:(fish3d.root.uuid.charCodeAt(0) % 100) / 100,  // species-unique bias
+    });
     const bodyMesh = new THREE.Mesh(fish3d.bodyGeo, material);
     fish3d.root.add(bodyMesh);
 
     const mesh = fish3d.root;
-    const scaleMin = opts.scaleMin ?? 2.5;
-    const scaleMax = opts.scaleMax ?? 4.0;
-    const scale = scaleMin + Math.random() * (scaleMax - scaleMin);
+    const scale = 2.5 + Math.random() * 1.5;
     mesh.scale.setScalar(scale);
 
     const { tankWidth, tankDepth, tankHeight } = this.aquariumScene.params;
@@ -171,12 +109,12 @@ export class FishManager {
     const fishIndex = this.fishes.length;
     const totalExpected = 30; // approximate total fish count
     const ySlot = (fishIndex / totalExpected) * (tankHeight - 1) + 0.5;
-    const personalY = ySlot + (Math.random() - 0.5) * (opts.yJitter ?? 1.5);
+    const personalY = ySlot + (Math.random() - 0.5) * 1.5;
     const y = Math.max(0.5, Math.min(tankHeight - 0.5, personalY));
 
     // Spread initial X positions across the tank
     const x = (Math.random() - 0.5) * tankWidth * 0.9;
-    const z = (Math.random() - 0.5) * tankDepth * (opts.zSpread ?? 0.3);
+    const z = (Math.random() - 0.5) * tankDepth * 0.3;
     mesh.position.set(x, y, z);
 
     // Side profile: fish body lies in XY plane, camera looks along -Z
@@ -197,15 +135,12 @@ export class FishManager {
     // Speed variety — some fish are slow drifters, some are fast
     const speedClass = Math.random();
     let speed;
-    if (opts.speedMin != null && opts.speedMax != null) {
-      speed = opts.speedMin + Math.random() * (opts.speedMax - opts.speedMin);
-    } else if (speedClass < 0.3) speed = 0.3 + Math.random() * 0.3; // slow
+    if (speedClass < 0.3) speed = 0.3 + Math.random() * 0.3; // slow
     else if (speedClass < 0.7) speed = 0.6 + Math.random() * 0.4; // medium
     else speed = 1.0 + Math.random() * 0.5; // fast
 
     const fish = {
       mesh, type, personalY,
-      fins: fish3d.fins,
       direction: goingRight ? 1 : -1,
       speed,
       swimPhase: Math.random() * Math.PI * 2,
@@ -217,8 +152,6 @@ export class FishManager {
       turnProgress: 0,
       // Bubble timer for intermittent fish bubbles
       bubbleTimer: 3 + Math.random() * 10,
-      foilPhase: Math.random() * Math.PI * 2,
-      foilYawAmp: data.neonHolo ? 0.075 : 0.045 + Math.random() * 0.035,
     };
 
     this.fishes.push(fish);
@@ -367,15 +300,15 @@ export class FishManager {
 
       // Swimming animation — primary motion is tail wag; body yaw is subtle.
       fish.swimPhase += dt * (2.5 + fish.speed * 1.5);
-      const tailWag = Math.sin(fish.swimPhase) * 0.10;
-      if (fish.fins?.caudal) fish.fins.caudal.rotation.y = tailWag;
+      const tailWag = Math.sin(fish.swimPhase) * 0.085;
+      if (fish.mesh.children[0]) {
+        fish.mesh.children[0].rotation.y = tailWag;
+      }
       // Very small body yaw wobble (not a disco move) so the whole fish looks
       // like it's swimming rather than sliding. ±1.5° max.
       if (!fish.turning) {
         const targetBase = fish.direction > 0 ? Math.PI : 0;
-        fish.mesh.rotation.y = targetBase
-          + Math.sin(fish.swimPhase * 0.35) * 0.026
-          + Math.sin(elapsed * (1.15 + fish.speed * 0.35) + fish.foilPhase) * fish.foilYawAmp;
+        fish.mesh.rotation.y = targetBase + Math.sin(fish.swimPhase * 0.35) * 0.026;
       }
       // Slight vertical flex
       fish.mesh.rotation.z = Math.sin(elapsed * 0.8 + fish.swimPhase) * 0.015;

@@ -13,8 +13,7 @@ import { createFishMaterial } from '../shaders/FishShaderMaterial.js';
 let _species = null;
 let _loading = null;
 
-// Relative path so the preview works both at site root (dev) and from a
-// subdirectory (staging.relaxmoods.com/cuttlefish/).
+// Relative path so the preview works both at site root and from /cuttlefish/.
 export async function loadSpecies(basePath = './fish/') {
   if (_species) return _species;
   if (_loading) return _loading;
@@ -64,17 +63,7 @@ export function createFish(type, opts = {}) {
   };
   const iridMult = data.iridoMultiplier ?? PATTERN_IRID[patternType] ?? 0.25;
   const spectralBias = (fish3d.root.uuid.charCodeAt(0) % 100) / 100;
-  const material = createFishMaterial(data.pattern, data.colors, data.neonHolo ? {
-    scaleSize:         58,
-    scaleOpacity:      0.06,
-    depthOpacity:      0.16,
-    iridIntensity:     0.12,
-    iridoIntensity:    iridMult,
-    iridoThickness:    6.4,
-    iridoMaskScale:    24,
-    iridoMaskOpacity:  0.32,
-    iridoSpectralBias: spectralBias,
-  } : {
+  const material = createFishMaterial(data.pattern, data.colors, {
     iridoIntensity:   iridMult,
     iridoThickness:   5.0,
     iridoMaskScale:   16,

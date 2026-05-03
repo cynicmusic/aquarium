@@ -1,59 +1,10 @@
-You are continuing a perf-pass session that another agent started on 2026-04-26.
-Read this whole prompt before doing anything.
+Aquarium repo operating notes:
 
-## Where we are
-- Goal: improve framerate on iPhone 13 Pro Max (was 1–3 fps in the cuttlefish-preview swim mode) and on the user's older Macbook (slow only when served from staging, fast locally).
-- 5 perf items were planned. Items 1 and 2 are done, deployed to staging, and confirmed by the user. Items 3, 4, 5 are still pending. Item 6 is logged as a follow-up; do NOT implement it.
-- Single source of truth: agents/sessions/2026-04-26-perf-pass.md. READ THIS FILE FIRST. It contains the diagnosis, the full plan with per-item rationale + files + change + expected impact + test instructions + rollback, and the status of each item.
-
-## Hard constraints
-- Don't change the on-screen viewport size or camera framing. The user explicitly said this.
-- Don't break visual fidelity. The cuttlefish look was iterated on for weeks. Every perf change must preserve appearance (item 3, the DPR cap, makes mobile slightly softer — that's the only acceptable visual delta, and only on touch devices).
-- The user wants to test each item between deploys. Do them ONE AT A TIME:
-  1. implement
-  2. update the session doc with what landed + how to test + rollback
-  3. tell the user it's ready to test (vite dev is at http://localhost:5173/cuttlefish-preview.html, FPS counter in upper left)
-  4. WAIT for them to confirm before moving to the next item
-  5. only after confirmation: deploy to staging via ./scripts/publish-cuttlefish.sh
-
-## Workflow rules (from auto-memory — also read ~/.claude/projects/-Users-asmith-aquarium/memory/MEMORY.md)
-- SSH key auth ONLY for any deploy. Never accept a password prompt. Before deploy, dry-run: `ssh -o BatchMode=yes -o ConnectTimeout=5 claudecoder@vps48807.dreamhostps.com 'echo ok'`. If it doesn't print `ok` cleanly, abort and tell the user. See feedback_ssh_keys_only.md.
-- Iterative dev style: don't one-shot. Build tools, measure, iterate. (feedback_iterative_development.md)
-- Pop it: open results in browser automatically after building. (feedback_pop_it.md)
-- The publish script is ./scripts/publish-cuttlefish.sh — already key-only. Don't add any password flags.
-
-## What to do, in order
-
-1. Read agents/sessions/2026-04-26-perf-pass.md cover to cover. The "Plan" section has items 3, 4, 5 fully specified. Don't re-derive what to do — it's already written.
-
-2. **Item 3** — cap WebGL backing-store pixel ratio at 1 on touch devices. Touches src/core/Scene.js:36 and src/workshop/CuttlefishPreview.js:103. Use `matchMedia('(pointer: coarse)').matches` to detect touch. The session doc has the exact snippet. setPixelRatio() does NOT change the canvas CSS size — that's why the user is OK with this change.
-
-3. After implementing item 3:
-   - Verify the build: `npx vite build --base=./ 2>&1 | tail -3`
-   - Update the session doc: change Item 3's Status to "🧪 AWAITING USER TEST (date)" and fill in a "What landed" block matching the format used for items 1+2.
-   - Tell the user item 3 is ready to test locally first (vite dev is probably already running, but check with `curl -s http://localhost:5173/cuttlefish-preview.html >/dev/null && echo alive`; if not, start it with `npx vite dev --port 5173` in background).
-   - Wait for confirmation. THEN deploy to staging.
-
-4. Same loop for Item 4 (drop fin computeVertexNormals — one-line removal in src/entities/Cuttlefish.js around line 1119).
-
-5. Same loop for Item 5 (uniform-zero guards in chromatophore shader — note this is partly redundant with item 1's #defines, but covers user-controllable runtime mute).
-
-6. After all five are confirmed: don't touch item 6. Tell the user the pass is done and item 6 is logged for later.
-
-## Repo orientation (so you don't have to rediscover)
-- Main aquarium scene: src/core/Scene.js — single render loop via setAnimationLoop
-- Standalone preview (what staging serves): cuttlefish-preview.html → src/workshop/CuttlefishPreview.js — its own RAF loop, single renderer
-- Cuttlefish entity: src/entities/Cuttlefish.js — has 5 createChromatophoreMaterial call sites (mantle/head/fins/tentacles/arms) which were given `features` flags in item 1
-- Skin shader: src/shaders/ChromatophoreMaterial.js — already wrapped in #ifdef HAS_CHROMA / HAS_IRIDO / HAS_ZEBRA / HAS_SPARKLE / HAS_HEAD_MASK
-- Swim world: src/swim/SwimWorld.js, src/swim/plants.js, src/swim/coral.js — items 2 added InstancedMesh buckets; fractalFern/branch (plants) and fractalBranch (coral) keep the legacy per-mesh path
-- FPS counter: lives in cuttlefish-preview.html (#fps element) + wired in CuttlefishPreview.js (updateFps function). Color-coded red <20, yellow 20–45, green ≥45. Updates 4×/sec.
-
-## Don't
-- Don't refactor adjacent code. Stay scoped to the perf item.
-- Don't add comments explaining what the code does (the named functions already do that). Only comment hidden constraints / non-obvious WHY.
-- Don't create new docs or summaries. The session doc is the only artifact.
-- Don't run agents — this is direct work, not a research task.
-- Don't bypass the user-test gate between items. The user wants to feel each change.
-
-## (Earlier prompt this file held — superseded by the perf pass above)
-make deep night fish a little brighter they keep getting darker
+- The publish standard lives in `agents/KB.md`.
+- Use the local ignored `.env` for DreamHost deploy settings.
+- `claudeaquarium` is the current DreamHost user for this repo.
+- Run `./scripts/setup-dreamhost-ssh.sh` once to install the key. It makes exactly one password SSH attempt.
+- After setup, deploys are key-only:
+  - `./scripts/publish-aquarium.sh`
+  - `./scripts/publish-cuttlefish.sh`
+- Standard aquarium should stay free of the removed holo tetra squad / holo fish layer.

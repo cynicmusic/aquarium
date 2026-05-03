@@ -203,33 +203,6 @@ vec3 patternTwoToneStripe(vec2 uv, vec3 bodyCol, vec3 stripeCol, vec3 dorsalCol,
   return bodyCol;
 }
 
-// ── Pattern type 7: Neon tetra holo — simplified canonical tetra with a
-// rolling blue/green iridophore band and red rear lower body.
-vec3 patternNeonHolo(vec2 uv, vec3 bodyCol, vec3 stripeCol, vec3 stripeCol2,
-                     vec3 dorsalCol, vec3 bellyCol, vec3 redCol,
-                     float redStart, float redY,
-                     float stripeCenter, float stripeWidth,
-                     float shimmerScale, float shimmerAmp, float t) {
-  vec3 col = mix(dorsalCol, bellyCol, smoothstep(0.25, 0.82, uv.y));
-
-  float lower = smoothstep(redY, redY + 0.085, uv.y);
-  float rear = smoothstep(redStart, redStart + 0.115, uv.x);
-  float redMask = rear * lower;
-  col = mix(col, redCol, redMask);
-
-  float wobble = noise2D(uv * shimmerScale + vec2(t * 0.06, -t * 0.035), 1.0) * 0.018;
-  float d = abs(uv.y - stripeCenter + wobble);
-  float band = smoothstep(stripeWidth * 1.35, stripeWidth * 0.22, d);
-  float roll = 0.5 + 0.5 * sin(uv.x * 18.0 - t * 2.4 + noise2D(uv * 5.0, 1.0) * 2.0);
-  vec3 stripe = mix(stripeCol, stripeCol2, roll);
-  stripe = mix(stripe, vec3(0.88, 1.0, 0.98), smoothstep(0.72, 1.0, roll) * shimmerAmp);
-  col = mix(col, stripe, band * 0.92);
-
-  float edgeGlow = smoothstep(stripeWidth * 1.45, stripeWidth * 0.95, d) * (1.0 - band);
-  col += stripeCol2 * edgeGlow * 0.18;
-  return col;
-}
-
 // ── Pattern type 6: Mottled (default/fallback) ──
 vec3 patternMottled(vec2 uv, vec3 bodyCol, float scale, float base, float range) {
   float mottle = base + fbm2D(uv, scale, 3) * range;
@@ -261,15 +234,11 @@ const VERT = /* glsl */`
 varying vec2 vUv;
 varying vec3 vNormal;
 varying vec3 vWorldPos;
-varying vec3 vWorldTangent;
-varying vec3 vWorldBitangent;
 varying float vFresnel;
 
 void main() {
   vUv = uv;
   vNormal = normalize(normalMatrix * normal);
-  vWorldTangent = normalize(mat3(modelMatrix) * vec3(1.0, 0.0, 0.0));
-  vWorldBitangent = normalize(mat3(modelMatrix) * vec3(0.0, 1.0, 0.0));
   vec4 wp = modelMatrix * vec4(position, 1.0);
   vWorldPos = wp.xyz;
   vec3 viewDir = normalize(cameraPosition - wp.xyz);
@@ -289,8 +258,6 @@ ${SCALE_GLSL}
 varying vec2 vUv;
 varying vec3 vNormal;
 varying vec3 vWorldPos;
-varying vec3 vWorldTangent;
-varying vec3 vWorldBitangent;
 varying float vFresnel;
 
 // Pattern uniforms
@@ -338,11 +305,6 @@ uniform float uBellyVBound;
 uniform float uStripeCenter;
 uniform float uStripeWidth;
 uniform vec3 uDorsalColor;
-uniform vec3 uSecondStripeColor;
-uniform vec3 uRedColor;
-uniform vec3 uBellyColor;
-uniform float uRedStart;
-uniform float uRedY;
 uniform float uShimmerScale;
 uniform float uShimmerAmp;
 
@@ -369,11 +331,6 @@ uniform float uIridoThickness;   // effective film thickness (nm/100)
 uniform float uIridoSpectralBias; // shifts the rainbow (0..1)
 uniform float uIridoMaskScale;   // noise frequency for patchNiness
 uniform float uIridoMaskOpacity; // how much the mask cuts through (0=full body, 1=tiny patchNes)
-uniform float uHoloSweepIntensity;
-uniform float uHoloSweepScale;
-uniform float uHoloSweepSpeed;
-uniform vec3 uHoloSweepColor1;
-uniform vec3 uHoloSweepColor2;
 uniform float uTime;
 
 // Lighting
@@ -418,12 +375,6 @@ void main() {
     // Two-tone stripe
     baseColor = patternTwoToneStripe(uv, uBodyColor, uStripeColor, uDorsalColor,
       uStripeCenter, uStripeWidth, uShimmerScale, uShimmerAmp);
-  } else if (uPatternType == 7) {
-    // Neon tetra holo
-    baseColor = patternNeonHolo(uv, uBodyColor, uStripeColor, uSecondStripeColor,
-      uDorsalColor, uBellyColor, uRedColor,
-      uRedStart, uRedY,
-      uStripeCenter, uStripeWidth, uShimmerScale, uShimmerAmp, uTime);
   } else {
     // Mottled fallback
     baseColor = patternMottled(uv, uBodyColor, uMottleScale, uMottleBase, uMottleRange);
@@ -504,15 +455,6 @@ void main() {
     composited = sheen;
   }
 
-  if (uHoloSweepIntensity > 0.001) {
-    float sweep = 0.5 + 0.5 * sin((uv.x * uHoloSweepScale + uv.y * 2.5) - uTime * uHoloSweepSpeed + uIridoSpectralBias * 6.28318);
-    float bands = smoothstep(0.62, 0.98, sweep);
-    float broken = smoothstep(0.18, 0.80, fbm2D(uv * (uHoloSweepScale * 0.35) + uTime * 0.025, 1.0, 3));
-    float gate = (0.35 + 0.65 * vFresnel) * bands * broken;
-    vec3 holoSweep = mix(uHoloSweepColor1, uHoloSweepColor2, sweep);
-    composited += holoSweep * gate * uHoloSweepIntensity;
-  }
-
   // ── Lighting ──
   float diffuse = max(dot(vNormal, uLightDir), 0.0) * 0.5 + 0.55;  // brighter ambient + diffuse
   vec3 lit = composited * diffuse;
@@ -522,39 +464,6 @@ void main() {
 
   // Rim light
   lit += vec3(0.3, 0.4, 0.5) * pow(vFresnel, 3.0) * 0.15;
-
-  if (uHoloSweepIntensity > 0.001) {
-    vec3 viewDir = normalize(cameraPosition - vWorldPos);
-    float pointerX = 0.5 + dot(viewDir, normalize(vWorldTangent)) * 0.86;
-    float pointerY = 0.5 + dot(viewDir, normalize(vWorldBitangent)) * 0.86;
-    vec2 foilPointer = clamp(vec2(pointerX, pointerY), 0.0, 1.0);
-    vec2 bg = uv + (foilPointer - 0.5) * vec2(2.6, 3.5);
-
-    float rainbowPhase = bg.x * uHoloSweepScale
-      + bg.y * (uHoloSweepScale * 0.38)
-      + uTime * uHoloSweepSpeed
-      + uIridoSpectralBias * 6.28318;
-    vec3 rainbow = vec3(
-      0.5 + 0.5 * sin(rainbowPhase),
-      0.5 + 0.5 * sin(rainbowPhase + 2.094),
-      0.5 + 0.5 * sin(rainbowPhase + 4.189)
-    );
-    rainbow = mix(rainbow, uHoloSweepColor1, 0.18);
-
-    float scan = 0.50 + 0.50 * smoothstep(0.34, 0.46, fract((uv.y + foilPointer.y * 0.24) * 92.0));
-    float barsA = smoothstep(0.24, 0.48, sin((uv.x + foilPointer.x * 0.9 + foilPointer.y * 0.35) * 34.0));
-    float barsB = smoothstep(0.40, 0.58, sin((uv.x - foilPointer.x * 0.55) * 15.0 + uTime * 0.42));
-    float bars = max(barsA * 0.7, barsB);
-
-    float hot = 1.0 - smoothstep(0.02, 0.72, distance(uv, foilPointer));
-    float glare = pow(hot, 1.35) + pow(max(0.0, vFresnel), 1.35) * 1.15;
-    float anglePop = smoothstep(0.05, 0.65, abs(dot(viewDir, normalize(vWorldTangent))));
-    float foilMask = (0.26 + bars * 0.70 + glare * 1.25) * scan * (0.55 + anglePop);
-
-    vec3 dodge = lit / max(vec3(0.18), 1.0 - rainbow * 0.72);
-    lit = mix(lit, dodge, clamp(foilMask * uHoloSweepIntensity * 0.46, 0.0, 0.92));
-    lit += mix(rainbow, uHoloSweepColor2, hot * 0.35) * foilMask * uHoloSweepIntensity * 1.12;
-  }
 
   gl_FragColor = vec4(lit, 1.0);
 }
@@ -578,7 +487,6 @@ export function createFishMaterial(patternConfig, colors, layerParams = {}) {
     'contours': 3,
     'gradient_zones': 4, 'gradient_iridescent': 4,
     'two_tone_stripe': 5, 'two_tone_zones': 4,
-    'neon_tetra_holo': 7,
     'composite_scales': 2, 'composite_grid': 2, 'composite_radial': 2,
     'mottled': 6,
   };
@@ -664,11 +572,6 @@ export function createFishMaterial(patternConfig, colors, layerParams = {}) {
     uStripeCenter: { value: patternConfig.stripeCenter ?? 0.4 },
     uStripeWidth: { value: patternConfig.stripeWidth ?? 0.08 },
     uDorsalColor: { value: parseColor(patternConfig.dorsalColor || [40, 20, 30]) },
-    uSecondStripeColor: { value: parseColor(patternConfig.secondStripeColor || patternConfig.stripeColor || [0, 255, 200]) },
-    uRedColor: { value: parseColor(patternConfig.redColor || patternConfig.accentColor || colors.accent || [255, 30, 45]) },
-    uBellyColor: { value: parseColor(patternConfig.bellyColor || [120, 160, 170]) },
-    uRedStart: { value: patternConfig.redStart ?? 0.38 },
-    uRedY: { value: patternConfig.redY ?? 0.43 },
     uShimmerScale: { value: patternConfig.shimmer?.scale ?? 12 },
     uShimmerAmp: { value: patternConfig.shimmer?.amp ?? 0.04 },
 
@@ -695,11 +598,6 @@ export function createFishMaterial(patternConfig, colors, layerParams = {}) {
     uIridoSpectralBias: { value: layerParams.iridoSpectralBias ?? 0.0 },
     uIridoMaskScale:    { value: layerParams.iridoMaskScale    ?? 14.0 },
     uIridoMaskOpacity:  { value: layerParams.iridoMaskOpacity  ?? 0.7 },
-    uHoloSweepIntensity:{ value: layerParams.holoSweepIntensity ?? 0.0 },
-    uHoloSweepScale:    { value: layerParams.holoSweepScale ?? 18.0 },
-    uHoloSweepSpeed:    { value: layerParams.holoSweepSpeed ?? 0.7 },
-    uHoloSweepColor1:   { value: new THREE.Color(layerParams.holoSweepColor1 ?? 0x66faff) },
-    uHoloSweepColor2:   { value: new THREE.Color(layerParams.holoSweepColor2 ?? 0xff66d8) },
     uTime:              { value: 0.0 },
 
     // Lighting

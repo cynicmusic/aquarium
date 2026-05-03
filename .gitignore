@@ -9,3 +9,4 @@ examples/external/
 agents/progress/debug_default.png
 agents/progress/rounds/*.png
 agents/progress/rounds/**/*.png
+.env
