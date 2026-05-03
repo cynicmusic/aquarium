@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cuttlefish</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; background:#07080f; color:#ccc; font:12px/1.4 monospace; overflow:hidden; }
+  body { display:flex; }
+  #view { flex:1; position:relative; width:100vw; height:100vh; }
+  canvas { display:block; }
+  #fps { position:absolute; top:10px; left:10px; z-index:11;
+    background:rgba(0,0,0,0.55); color:#cfd; padding:5px 9px; border-radius:4px;
+    font:12px/1.1 ui-monospace, monospace; pointer-events:none;
+    text-shadow:0 0 2px #000; min-width:46px; }
+  #fps .lo  { color:#f86; }
+  #fps .mid { color:#fd6; }
+  #fps .hi  { color:#9f8; }
+  button { background:#234; color:#bcf; border:1px solid #456; padding:6px; font:12px monospace; cursor:pointer; margin:4px 0; border-radius:3px; }
+  button:hover { background:#345; color:#def; }
+  #mode-buttons { position:absolute; top:10px; right:10px; display:flex; gap:6px; z-index:10; align-items:center; flex-wrap:wrap; justify-content:flex-end; max-width:calc(100vw - 86px); }
+  #mode-buttons button { width:auto; padding:8px 14px; font-size:12px; border-radius:4px; box-shadow:0 1px 3px rgba(0,0,0,0.5); }
+  #mode-buttons button.active { background:#584; border-color:#8b6; color:#fff; box-shadow:0 0 10px #6a4; }
+  #mode-buttons .cam { padding:8px 8px; min-width:26px; background:#223; border-color:#334; color:#9ac; }
+  #mode-buttons .cam.active { background:#356; border-color:#68a; color:#fff; box-shadow:0 0 8px #48a; }
+  #mode-buttons .cam.z1 { background:#234; border-color:#345; }
+  #mode-buttons .cam.z2 { background:#245; border-color:#358; }
+  #mode-buttons .cam.ac { background:#443; border-color:#aa5; color:#ffd; }
+  #mode-buttons .cam.ac.active { background:#a92; border-color:#fd4; color:#fff; box-shadow:0 0 10px #fd4; }
+  #mode-buttons .sep { width:1px; height:22px; background:#334; margin:0 2px; }
+  #page-links { position:absolute; right:12px; bottom:10px; z-index:12; display:flex; gap:6px; }
+  #page-links a { color:#9bd; background:rgba(0,0,0,0.48); border:1px solid rgba(130,170,210,0.35); padding:6px 9px; border-radius:4px; text-decoration:none; font:12px/1.1 ui-monospace, monospace; }
+  #page-links a:hover { color:#dff; border-color:rgba(170,220,255,0.65); }
+</style>
+</head>
+<body>
+<div id="view">
+  <div id="fps">— fps</div>
+  <div id="page-links">
+    <a href="/">Aquarium</a>
+    <a href="/chroma/">chroma</a>
+  </div>
+  <div id="mode-buttons">
+    <button id="swimBtn" title="Camera follows as he swims">swim</button>
+    <span class="sep"></span>
+    <button id="cam1" class="cam" title="Camera 1 — chase">1</button>
+    <button id="cam2" class="cam" title="Camera 2 — high chase">2</button>
+    <button id="cam3" class="cam" title="Camera 3 — low belly">3</button>
+    <button id="cam4" class="cam" title="Camera 4 — wide side">4</button>
+    <button id="cam5" class="cam z1" title="Camera 5 — chase (pulled back)">5</button>
+    <button id="cam6" class="cam z1" title="Camera 6 — high chase (pulled back)">6</button>
+    <button id="cam7" class="cam z2" title="Camera 7 — low belly (far)">7</button>
+    <button id="cam8" class="cam z2" title="Camera 8 — wide side (far)">8</button>
+    <button id="camAuto" class="cam ac" title="Autocam — cycle cameras at varying intervals">ac</button>
+  </div>
+</div>
+<script>
+window.CUTTLEFISH_DEFAULTS = {
+  animSpeed: 2.00, rotSpeed: 0.04,
+  mantleLength: 2.65, mantleRadius: 0.46, mantleHeight: 0.40, mantleTaper: 0.98,
+  mantleShoulderBoost: 1.15, mantleFrontBoost: 1.23,
+  headLength: 1.20, headTiltDown: -0.16, headRecess: 0.66, headBaseY: 0.10,
+  headMouthY: -0.14, headBackR: 0.62, headBackH: 0.26, headForeheadR: 0.68,
+  headForeheadH: 0.48, headEyeR: 0.47, headEyeH: 0.38, headCheekR: 0.32,
+  headCheekH: 0.29, headMouthR: 0.12,
+  eyeRadius: 0.08, eyeStation: 0.30, eyeRiseY: 0.95, eyeLateralPad: -0.045,
+  eyeTiltUp: 0.29, eyeForwardYaw: 0.64, eyeSpread: 0.40,
+  pupilScaleW: 0.74, pupilScaleH: 0.81,
+  finWidth: 0.60, finRipples: 9, finRippleAmp: 0.064, finExtend: 1.80,
+  finBumpFreq: 3.40, finBumpAmp: 0.35, finLateralAmp: 0.60,
+  armLength: 1.20, armCurl: 0.71, armBaseRadius: 0.075, armCrownRadius: 0.05,
+  armDropScale: 2.00, armGravity: 0.70,
+  tentacleLength: 2.06, tentacleExtension: 0.80, tentacleClubRadius: 0.100,
+  tentacleBaseRadius: 0.025, tentacleTipRadius: 0.003, tentacleDrop: 0.50,
+  hideTentacles: false,
+  chromaDensity: 88, chromaIntensity: 0.85, iridoIntensity: 2.00, iridoHueRange: 1.61,
+  zebraIntensity: 1.21, zebraFrequency: 5, zebraSharpness: 0.5,
+  zebraScaleX: 5.00, zebraScaleY: 5.00, zebraOffsetX: 0.58,
+  zebraOffsetY: 0.60, zebraRotation: 3.14, zebraGateLo: 0.16, zebraGateHi: 0.82
+};
+</script>
+<script type="module" src="/src/workshop/CuttlefishPreview.js"></script>
+</body>
+</html>

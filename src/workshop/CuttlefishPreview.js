@@ -355,8 +355,9 @@ const floor = new THREE.Mesh(_floorGeo, floorMat);
 floor.position.y = -2.3;
 scene.add(floor);
 
-// init params from slider defaults
-const params = {};
+// init params from slider defaults, or from the publish-only shell where the
+// params panel is intentionally absent from the HTML.
+const params = { ...(window.CUTTLEFISH_DEFAULTS || {}) };
 for (const id of Object.keys(CONTROLS)) {
   const el = document.getElementById(id);
   if (!el) continue;

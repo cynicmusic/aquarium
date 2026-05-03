@@ -51,14 +51,18 @@
   #mode-buttons .cam.ac { background:#443; border-color:#aa5; color:#ffd; }
   #mode-buttons .cam.ac.active { background:#a92; border-color:#fd4; color:#fff; box-shadow:0 0 10px #fd4; }
   #mode-buttons .sep { width:1px; height:22px; background:#334; margin:0 2px; }
-  #home-link { position:absolute; right:12px; bottom:10px; z-index:12; color:#9bd; background:rgba(0,0,0,0.48); border:1px solid rgba(130,170,210,0.35); padding:6px 9px; border-radius:4px; text-decoration:none; font:12px/1.1 ui-monospace, monospace; }
-  #home-link:hover { color:#dff; border-color:rgba(170,220,255,0.65); }
+  #page-links { position:absolute; right:12px; bottom:10px; z-index:12; display:flex; gap:6px; }
+  #page-links a { color:#9bd; background:rgba(0,0,0,0.48); border:1px solid rgba(130,170,210,0.35); padding:6px 9px; border-radius:4px; text-decoration:none; font:12px/1.1 ui-monospace, monospace; }
+  #page-links a:hover { color:#dff; border-color:rgba(170,220,255,0.65); }
 </style>
 </head>
 <body>
 <div id="view">
   <div id="fps">— fps</div>
-  <a id="home-link" href="/">Aquarium</a>
+  <div id="page-links">
+    <a href="/">Aquarium</a>
+    <a href="/chroma/">chroma</a>
+  </div>
   <div id="mode-buttons">
     <button id="swimBtn" title="Camera follows as he swims">🏊 Swim mode</button>
     <span class="sep"></span>

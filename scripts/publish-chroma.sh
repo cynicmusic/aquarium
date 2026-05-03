@@ -1,14 +1,9 @@
 #!/usr/bin/env bash
-# Build the cuttlefish preview as static files and rsync to
-# the DreamHost /cuttlefish/ path. No args, no flags -- one shot.
-#
-#   ./scripts/publish-cuttlefish.sh
-#
-# Requires: SSH key auth set up by scripts/setup-dreamhost-ssh.sh.
+# Build the chromatophore workshop and rsync it to the DreamHost /chroma/ path.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-DEPLOY="$(mktemp -d -t cuttlefish-deploy.XXXXXX)"
+DEPLOY="$(mktemp -d -t chroma-deploy.XXXXXX)"
 trap 'rm -rf "$DEPLOY"' EXIT
 
 if [ ! -f "$ROOT/.env" ]; then
@@ -27,8 +22,8 @@ set +a
 : "${DREAMHOST_URL:?Missing DREAMHOST_URL in .env}"
 : "${DREAMHOST_SSH_KEY:?Missing DREAMHOST_SSH_KEY in .env}"
 
-REMOTE_DIR="$DREAMHOST_REMOTE_ROOT/cuttlefish"
-URL="${DREAMHOST_URL%/}/cuttlefish/"
+REMOTE_DIR="$DREAMHOST_REMOTE_ROOT/chroma"
+URL="${DREAMHOST_URL%/}/chroma/"
 SSH_OPTS=(
   -i "$DREAMHOST_SSH_KEY"
   -o IdentitiesOnly=yes
@@ -40,28 +35,26 @@ SSH_OPTS=(
 
 cd "$ROOT"
 
-echo "→ vite build (base=./)"
+echo "-> vite build (base=./)"
 rm -rf dist
 npx vite build --base=./ >/dev/null
 
-echo "→ assembling deploy payload at $DEPLOY"
-cp dist/cuttlefish-publish.html "$DEPLOY/index.html"
+echo "-> assembling deploy payload at $DEPLOY"
+cp dist/chromatophore-workshop.html "$DEPLOY/index.html"
 cp -R dist/assets "$DEPLOY/assets"
-cp -R dist/fish   "$DEPLOY/fish"
 
 ssh "${SSH_OPTS[@]}" "$DREAMHOST_USER@$DREAMHOST_HOST" "mkdir -p ~/$REMOTE_DIR && chmod 755 ~/$REMOTE_DIR"
 
-echo "→ rsync → $DREAMHOST_USER@$DREAMHOST_HOST:~/$REMOTE_DIR/"
+echo "-> rsync -> $DREAMHOST_USER@$DREAMHOST_HOST:~/$REMOTE_DIR/"
 rsync -az --delete --no-perms --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r -e "ssh ${SSH_OPTS[*]}" "$DEPLOY/" \
   "$DREAMHOST_USER@$DREAMHOST_HOST:~/$REMOTE_DIR/"
 
-echo "→ verify"
+echo "-> verify"
 CODE=$(curl -L -s -o /dev/null -w "%{http_code}" "$URL")
 if [ "$CODE" != "200" ]; then
-  echo "✗ site returned HTTP $CODE for $URL" >&2
+  echo "site returned HTTP $CODE for $URL" >&2
   exit 1
 fi
-echo "✓ $URL → HTTP 200"
+echo "ok $URL -> HTTP 200"
 
-echo "→ popping browser"
 open "$URL"
